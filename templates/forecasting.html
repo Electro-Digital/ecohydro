@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forecasting - BHEPP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/all.min.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body style="font-family: 'Poppins', sans-serif;">
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    {% include 'dashboard_components/admin_sidebar.html' %}
+
+    <div class="main-content" id="mainContent">
+        <div class="top-nav">
+            <div class="nav-left">
+                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+                <h1 class="page-title">Inflow & Dam Level Forecasting</h1>
+            </div>
+            <div class="nav-right">
+                <div class="user-menu">
+                    <div class="user-avatar">{{ session.user_id[0].upper() if session.user_id else 'U' }}</div>
+                    <span>{{ session.user_id if session.user_id else 'User' }}</span>
+                    <div class="user-dropdown"><a href="{{ url_for('logout') }}">Logout</a></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <!-- Hero Section -->
+            <div class="forecast-hero">
+                <div class="hero-content">
+                    <div class="hero-left">
+                        <h1 class="hero-title">7-Day Inflow & Dam Level Forecast</h1>
+                        <p class="hero-subtitle">ARIMA + ANN Hybrid Model for Botocan Hydroelectric Power Plant</p>
+                        <div class="hero-badges">
+                            <span class="status-badge"><i class="fas fa-circle"></i> Model Active</span>
+                            <span class="status-badge"><i class="fas fa-clock"></i> Updated: <span id="lastUpdate">--</span></span>
+                        </div>
+                    </div>
+                    <div class="hero-right">
+                        <div class="forecast-stats">
+                            <div class="stat-card">
+                                <div class="stat-icon"><i class="fas fa-water"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-label">Current Dam Level</div>
+                                    <div class="stat-value" id="currentDamLevel">--</div>
+                                    <div class="stat-unit">masl</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon"><i class="fas fa-tint"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-label">Predicted Inflow</div>
+                                    <div class="stat-value" id="predictedInflow">--</div>
+                                    <div class="stat-unit">m³/s</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon"><i class="fas fa-bolt"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-label">Generation Hours</div>
+                                    <div class="stat-value" id="genHours">--</div>
+                                    <div class="stat-unit">hrs</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dam Elevation Forecast Chart -->
+            <div class="chart-section">
+                <div class="section-header">
+                    <div class="section-info">
+                        <div class="section-icon"><i class="fas fa-chart-area"></i></div>
+                        <div>
+                            <h2 class="section-title">Dam Elevation Forecast (7 Days)</h2>
+                            <p class="section-desc">Cyclic recovery and generation simulation</p>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="train-btn" onclick="trainModel()"><i class="fas fa-brain"></i> Train Model</button>
+                        <button class="predict-btn" onclick="runPrediction()"><i class="fas fa-play"></i> Run Forecast</button>
+                        <button class="refresh-btn" onclick="loadForecastData()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="damElevationChart"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <span class="legend-item"><span class="dot recovery"></span> Recovery Phase (Plant OFF)</span>
+                    <span class="legend-item"><span class="dot generation"></span> Generation Phase (10 MW)</span>
+                    <span class="legend-item"><span class="line min"></span> Min Level (330 masl)</span>
+                    <span class="legend-item"><span class="line max"></span> Max Level (332 masl)</span>
+                </div>
+            </div>
+
+            <!-- Inflow Forecast Chart -->
+            <div class="chart-section">
+                <div class="section-header">
+                    <div class="section-info">
+                        <div class="section-icon"><i class="fas fa-water"></i></div>
+                        <div>
+                            <h2 class="section-title">Inflow Forecast (Hybrid ARIMA + ANN)</h2>
+                            <p class="section-desc">Predicted water inflow based on rainfall and historical patterns</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="inflowChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Rainfall Forecast Chart -->
+            <div class="chart-section">
+                <div class="section-header">
+                    <div class="section-info">
+                        <div class="section-icon"><i class="fas fa-cloud-rain"></i></div>
+                        <div>
+                            <h2 class="section-title">Rainfall Forecast (7 Days)</h2>
+                            <p class="section-desc">Hourly precipitation from Open-Meteo API</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="rainfallChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Operation Schedule Table -->
+            <div class="chart-section">
+                <div class="section-header">
+                    <div class="section-info">
+                        <div class="section-icon"><i class="fas fa-calendar-alt"></i></div>
+                        <div>
+                            <h2 class="section-title">Operation Schedule</h2>
+                            <p class="section-desc">Predicted recovery and generation cycles</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <div class="table-controls">
+                        <label>Rows per page: 
+                            <select id="rowsPerPage" onchange="changeRowsPerPage()">
+                                <option value="10">10</option>
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="168">All (168)</option>
+                            </select>
+                        </label>
+                    </div>
+                    <table class="forecast-table" id="scheduleTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable(0)" style="cursor: pointer;">Timestamp <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable(1)" style="cursor: pointer;">Dam Level (masl) <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable(2)" style="cursor: pointer;">Inflow (m³/s) <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable(3)" style="cursor: pointer;">Outflow (m³/s) <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable(4)" style="cursor: pointer;">Rainfall (mm) <i class="fas fa-sort"></i></th>
+                                <th onclick="sortTable(5)" style="cursor: pointer;">Mode <i class="fas fa-sort"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleTableBody">
+                            <tr><td colspan="6" class="loading">Loading forecast data...</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="pagination-controls">
+                        <button class="page-btn" onclick="previousPage()" id="prevBtn"><i class="fas fa-chevron-left"></i> Previous</button>
+                        <span class="page-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+                        <button class="page-btn" onclick="nextPage()" id="nextBtn">Next <i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let damChart, inflowChart, rainfallChart;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            loadForecastData();
+            setInterval(loadForecastData, 300000); // Refresh every 5 minutes
+
+            // Sidebar toggle
+            document.getElementById('menuToggle')?.addEventListener('click', function() {
+                document.getElementById('sidebar')?.classList.toggle('collapsed');
+                document.getElementById('mainContent')?.classList.toggle('expanded');
+            });
+        });
+
+        function initCharts() {
+            // Dam Elevation Chart
+            const damCtx = document.getElementById('damElevationChart').getContext('2d');
+            damChart = new Chart(damCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Date/Time' } },
+                        y: { title: { display: true, text: 'Elevation (masl)' }, min: 328, max: 334 }
+                    }
+                }
+            });
+
+            // Inflow Chart
+            const inflowCtx = document.getElementById('inflowChart').getContext('2d');
+            inflowChart = new Chart(inflowCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        x: { title: { display: true, text: 'Date/Time' } },
+                        y: { title: { display: true, text: 'Inflow (m³/s)' }, beginAtZero: true }
+                    }
+                }
+            });
+
+            // Rainfall Chart
+            const rainCtx = document.getElementById('rainfallChart').getContext('2d');
+            rainfallChart = new Chart(rainCtx, {
+                type: 'bar',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { title: { display: true, text: 'Date/Time' } },
+                        y: { title: { display: true, text: 'Rainfall (mm)' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function trainModel() {
+            if (!confirm('Train the ARIMA+ANN model? This may take several minutes.')) return;
+            
+            const btn = event.target.closest('button');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Training...';
+            
+            fetch('/api/train-model', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-brain"></i> Train Model';
+                    if (data.success) {
+                        alert('Model trained successfully!\n' + (data.message || ''));
+                    } else {
+                        alert('Training failed: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(err => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-brain"></i> Train Model';
+                    alert('Training failed: ' + err.message);
+                });
+        }
+
+        function runPrediction() {
+            if (!confirm('Run 7-day forecast prediction?')) return;
+            
+            const btn = event.target.closest('button');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+            
+            fetch('/api/run-prediction', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-play"></i> Run Prediction';
+                    if (data.success) {
+                        alert('Prediction completed successfully!');
+                        loadForecastData();
+                    } else {
+                        alert('Prediction failed: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(err => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-play"></i> Run Prediction';
+                    alert('Prediction failed: ' + err.message);
+                });
+        }
+
+        function loadForecastData() {
+            fetch('/api/forecast-data')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('Error:', data.error);
+                        return;
+                    }
+                    console.log('Forecast data:', data);
+                    console.log('Rainfall data:', data.rain_mm);
+                    updateCharts(data);
+                    updateStats(data);
+                    updateTable(data);
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                })
+                .catch(err => console.error('Failed to load forecast:', err));
+        }
+
+        function updateCharts(data) {
+            const labels = data.timestamps || [];
+            
+            // Dam Elevation Chart
+            damChart.data.labels = labels;
+            damChart.data.datasets = [
+                {
+                    label: 'Dam Elevation',
+                    data: data.dam_el_masl || [],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 2,
+                    fill: true
+                },
+                {
+                    label: 'Min Level (330m)',
+                    data: Array(labels.length).fill(330),
+                    borderColor: '#ef4444',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Max Level (332m)',
+                    data: Array(labels.length).fill(332),
+                    borderColor: '#10b981',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    pointRadius: 0
+                }
+            ];
+            damChart.update();
+
+            // Inflow Chart
+            inflowChart.data.labels = labels;
+            inflowChart.data.datasets = [{
+                label: 'Predicted Inflow',
+                data: data.Q_in_cms || [],
+                borderColor: '#06b6d4',
+                backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                borderWidth: 2,
+                fill: true
+            }];
+            inflowChart.update();
+
+            // Rainfall Chart
+            rainfallChart.data.labels = labels;
+            rainfallChart.data.datasets = [{
+                label: 'Rainfall',
+                data: data.rain_mm || [],
+                backgroundColor: '#8b5cf6',
+                borderColor: '#7c3aed',
+                borderWidth: 1
+            }];
+            rainfallChart.update();
+        }
+
+        function updateStats(data) {
+            if (data.dam_el_masl && data.dam_el_masl.length > 0) {
+                document.getElementById('currentDamLevel').textContent = data.dam_el_masl[0].toFixed(2);
+            }
+            if (data.Q_in_cms && data.Q_in_cms.length > 0) {
+                const avgInflow = data.Q_in_cms.reduce((a, b) => a + b, 0) / data.Q_in_cms.length;
+                document.getElementById('predictedInflow').textContent = avgInflow.toFixed(2);
+            }
+            if (data.operation_mode) {
+                const genHours = data.operation_mode.filter(m => m === 'generation').length;
+                document.getElementById('genHours').textContent = genHours;
+            }
+        }
+
+        let tableData = null;
+        let currentPage = 1;
+        let rowsPerPage = 25;
+        let sortColumn = -1;
+        let sortAscending = true;
+
+        function updateTable(data) {
+            tableData = data;
+            currentPage = 1;
+            renderTable();
+        }
+
+        function changeRowsPerPage() {
+            rowsPerPage = parseInt(document.getElementById('rowsPerPage').value);
+            currentPage = 1;
+            renderTable();
+        }
+
+        function sortTable(col) {
+            if (!tableData) return;
+            
+            if (sortColumn === col) {
+                sortAscending = !sortAscending;
+            } else {
+                sortColumn = col;
+                sortAscending = true;
+            }
+            
+            const indices = Array.from({length: tableData.timestamps.length}, (_, i) => i);
+            
+            indices.sort((a, b) => {
+                let valA, valB;
+                
+                switch(col) {
+                    case 0: // Timestamp
+                        valA = new Date(tableData.timestamps[a]);
+                        valB = new Date(tableData.timestamps[b]);
+                        break;
+                    case 1: // Dam Level
+                        valA = tableData.dam_el_masl[a];
+                        valB = tableData.dam_el_masl[b];
+                        break;
+                    case 2: // Inflow
+                        valA = tableData.Q_in_cms[a];
+                        valB = tableData.Q_in_cms[b];
+                        break;
+                    case 3: // Outflow
+                        valA = tableData.Q_out_cms[a];
+                        valB = tableData.Q_out_cms[b];
+                        break;
+                    case 4: // Rainfall
+                        valA = tableData.rain_mm[a];
+                        valB = tableData.rain_mm[b];
+                        break;
+                    case 5: // Mode
+                        valA = tableData.operation_mode[a];
+                        valB = tableData.operation_mode[b];
+                        break;
+                }
+                
+                if (valA < valB) return sortAscending ? -1 : 1;
+                if (valA > valB) return sortAscending ? 1 : -1;
+                return 0;
+            });
+            
+            const sortedData = {
+                timestamps: indices.map(i => tableData.timestamps[i]),
+                dam_el_masl: indices.map(i => tableData.dam_el_masl[i]),
+                Q_in_cms: indices.map(i => tableData.Q_in_cms[i]),
+                Q_out_cms: indices.map(i => tableData.Q_out_cms[i]),
+                rain_mm: indices.map(i => tableData.rain_mm[i]),
+                operation_mode: indices.map(i => tableData.operation_mode[i])
+            };
+            
+            tableData = sortedData;
+            currentPage = 1;
+            renderTable();
+            
+            // Update sort icons
+            document.querySelectorAll('.forecast-table th i').forEach((icon, idx) => {
+                if (idx === col) {
+                    icon.className = sortAscending ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                } else {
+                    icon.className = 'fas fa-sort';
+                }
+            });
+        }
+
+        function renderTable() {
+            if (!tableData) return;
+            
+            const tbody = document.getElementById('scheduleTableBody');
+            tbody.innerHTML = '';
+            
+            const totalRows = tableData.timestamps.length;
+            const totalPages = Math.ceil(totalRows / rowsPerPage);
+            const startIdx = (currentPage - 1) * rowsPerPage;
+            const endIdx = Math.min(startIdx + rowsPerPage, totalRows);
+            
+            for (let i = startIdx; i < endIdx; i++) {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${tableData.timestamps[i]}</td>
+                    <td>${tableData.dam_el_masl[i].toFixed(2)}</td>
+                    <td>${tableData.Q_in_cms[i].toFixed(2)}</td>
+                    <td>${tableData.Q_out_cms[i].toFixed(2)}</td>
+                    <td>${tableData.rain_mm[i].toFixed(2)}</td>
+                    <td><span class="mode-badge ${tableData.operation_mode[i]}">${tableData.operation_mode[i]}</span></td>
+                `;
+            }
+            
+            document.getElementById('currentPage').textContent = currentPage;
+            document.getElementById('totalPages').textContent = totalPages;
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(tableData.timestamps.length / rowsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        }
+    </script>
+
+    <style>
+        .forecast-hero {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 30px;
+            color: white;
+        }
+        .hero-content { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+        .hero-title { font-size: 32px; font-weight: 700; margin: 0 0 10px 0; color: white; }
+        .hero-subtitle { font-size: 16px; margin: 0 0 20px 0; opacity: 0.9; }
+        .hero-badges { display: flex; gap: 15px; }
+        .status-badge { background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+        .status-badge i { color: #22c55e; animation: pulse 2s infinite; }
+        .forecast-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .stat-card { background: rgba(255,255,255,0.15); padding: 20px; border-radius: 12px; backdrop-filter: blur(10px); }
+        .stat-icon { font-size: 24px; margin-bottom: 10px; }
+        .stat-label { font-size: 12px; opacity: 0.8; margin-bottom: 5px; color: white; }
+        .stat-value { font-size: 28px; font-weight: 700; color: white; }
+        .stat-unit { font-size: 14px; opacity: 0.8; color: white; }
+        .chart-section { background: white; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .section-info { display: flex; align-items: center; gap: 15px; }
+        .section-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+        .section-title { font-size: 20px; font-weight: 600; margin: 0; color: #1f2937; }
+        .section-desc { font-size: 13px; color: #6b7280; margin: 4px 0 0 0; }
+        .action-buttons { display: flex; gap: 10px; }
+        .train-btn { background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        .train-btn:hover { background: #7c3aed; }
+        .train-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        .predict-btn { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        .predict-btn:hover { background: #059669; }
+        .predict-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        .refresh-btn { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        .refresh-btn:hover { background: #2563eb; }
+        .refresh-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        .chart-container { height: 400px; position: relative; }
+        .chart-legend { display: flex; gap: 20px; margin-top: 15px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6b7280; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot.recovery { background: #06b6d4; }
+        .dot.generation { background: #f59e0b; }
+        .line { width: 20px; height: 2px; }
+        .line.min { background: #ef4444; }
+        .line.max { background: #10b981; }
+        .table-container { overflow-x: auto; }
+        .table-controls { padding: 15px; background: #f9fafb; border-radius: 8px 8px 0 0; display: flex; justify-content: flex-end; }
+        .table-controls label { color: #374151; font-weight: 500; }
+        .table-controls select { margin-left: 8px; padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; }
+        .forecast-table { width: 100%; border-collapse: collapse; }
+        .forecast-table th { background: #f3f4f6; padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; user-select: none; }
+        .forecast-table th:hover { background: #e5e7eb; }
+        .forecast-table td { padding: 12px; border-bottom: 1px solid #e5e7eb; color: #6b7280; }
+        .forecast-table tbody tr:hover { background: #f9fafb; }
+        .mode-badge { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .mode-badge.recovery { background: #dbeafe; color: #1e40af; }
+        .mode-badge.generation { background: #fef3c7; color: #92400e; }
+        .loading { text-align: center; padding: 40px; color: #9ca3af; }
+        .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 20px; padding: 15px; }
+        .page-btn { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .page-btn:hover { background: #2563eb; }
+        .page-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        .page-info { color: #6b7280; font-weight: 500; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @media (max-width: 768px) {
+            .hero-content { grid-template-columns: 1fr; }
+            .forecast-stats { grid-template-columns: 1fr; }
+        }
+    </style>
+</body>
+</html>

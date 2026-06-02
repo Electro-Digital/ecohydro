@@ -1,0 +1,83 @@
+<!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>CBK Admin</h2>
+            <p>EcoHydro Botocan Plant Monitoring</p>
+        </div>
+
+        <nav class="sidebar-menu">
+            <a href="{{ url_for('main_dashboard') }}" class="menu-item {% if request.endpoint == 'main_dashboard' %}active{% endif %}" data-page="weather">
+                <i class="fas fa-cloud-sun"></i>
+                <span>Weather Forecast</span>
+            </a>
+            <a href="{{ url_for('dashboard3') }}" class="menu-item {% if request.endpoint == 'dashboard3' %}active{% endif %}" data-page="performance">
+                <i class="fas fa-chart-bar"></i>
+                <span>Performance Reports</span>
+            </a>
+            <a href="{{ url_for('forecasting') }}" class="menu-item {% if request.endpoint == 'forecasting' %}active{% endif %}" data-page="forecasting">
+                <i class="fas fa-brain"></i>
+                <span>AI Forecasting</span>
+            </a>
+            <a href="{{ url_for('dashboard2') }}" class="menu-item {% if request.endpoint == 'dashboard2' %}active{% endif %}" data-page="analytics">
+                <i class="fas fa-chart-line"></i>
+                <span>Data Analytics</span>
+            </a>
+            <a href="{{ url_for('dashboard') }}" class="menu-item {% if request.endpoint == 'dashboard' %}active{% endif %}" data-page="charts">
+                <i class="fas fa-chart-bar"></i>
+                <span>Botocan Gauges</span>
+            </a>
+            <a href="{{ url_for('admin_user_management') }}" class="menu-item {% if request.endpoint == 'admin_user_management' %}active{% endif %}" data-page="users">
+                <i class="fas fa-users"></i>
+                <span>User Management</span>
+            </a>
+            <!--<a href="#" class="menu-item" data-page="settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+            <a href="#" class="menu-item" data-page="export">
+                <i class="fas fa-download"></i>
+                <span>Export Data</span>
+            </a>-->
+            <a href="/logout" class="menu-item">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </nav>
+    </div>
+
+<script>
+// Enhanced sidebar dropdown behavior
+document.addEventListener('DOMContentLoaded', function() {
+    const submenuItems = document.querySelectorAll('.has-submenu');
+    const regularMenuItems = document.querySelectorAll('.menu-item:not(.has-submenu)');
+    
+    submenuItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const submenu = this.nextElementSibling;
+            const isExpanded = this.classList.contains('expanded');
+            
+            // Toggle current submenu
+            if (isExpanded) {
+                this.classList.remove('expanded');
+                if (submenu) submenu.classList.remove('expanded');
+            } else {
+                this.classList.add('expanded');
+                if (submenu) submenu.classList.add('expanded');
+            }
+        });
+    });
+    
+    // Only collapse when clicking non-submenu items
+    regularMenuItems.forEach(item => {
+        item.addEventListener('click', function() {
+            // Collapse all submenus when navigating to non-submenu pages
+            submenuItems.forEach(submenuItem => {
+                submenuItem.classList.remove('expanded');
+                const submenu = submenuItem.nextElementSibling;
+                if (submenu) submenu.classList.remove('expanded');
+            });
+        });
+    });
+});
+</script>

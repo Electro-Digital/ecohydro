@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management- CBK</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/all.min.css') }}">
+</head>
+<body>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    {% include 'dashboard_components/admin_sidebar.html' %}
+
+    <div class="main-content" id="mainContent">
+        <div class="top-nav">
+            <div class="nav-left">
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Admin User Management</h1>
+            </div>
+            <div class="nav-right">
+                <div class="user-menu">
+                    <div class="user-avatar">{{ session.user_id[0].upper() if session.user_id else 'U' }}</div>
+                    <span>{{ session.user_id if session.user_id else 'User' }}</span>
+                    <div class="user-dropdown">
+                        <a href="{{ url_for('logout') }}">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <div class="content-header">
+                <h2>User Management</h2>
+                <div>
+                    <button class="btn btn-secondary" onclick="changeAdminPassword()">Change My Password</button>
+                    <button class="btn btn-primary" onclick="showAddUserModal()">Add New User</button>
+                </div>
+            </div>
+
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab('active')">Active Users</button>
+                    <button class="tab-button" onclick="switchTab('archived')">Archived Users</button>
+                </div>
+            </div>
+
+            <div class="users-table-container">
+                <table class="users-table" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Locations</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Users will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Add User Modal -->
+        <div class="modal" id="addUserModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add New User</h3>
+                    <span class="close" onclick="closeModal('addUserModal')">&times;</span>
+                </div>
+                <form id="addUserForm">
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="newUserEmail" required>
+                        <small>Email will be used as username</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Temporary Password</label>
+                        <input type="password" id="newUserPassword" required>
+                        <small>User will be required to change on first login</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select id="newUserRole" required>
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Locations Access</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" value="botocan1"> Botocan 1</label>
+                            <label><input type="checkbox" value="botocan2"> Botocan 2</label>
+                            <label><input type="checkbox" value="kalayaan01"> Kalayaan 01</label>
+                            <label><input type="checkbox" value="kalayaan02"> Kalayaan 02</label>
+                            <label><input type="checkbox" value="kalayaan03"> Kalayaan 03</label>
+                            <label><input type="checkbox" value="kalayaan04"> Kalayaan 04</label>
+                            <label><input type="checkbox" value="all"> All Locations</label>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeModal('addUserModal')">Cancel</button>
+                        <button type="submit">Create User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit User Modal -->
+        <div class="modal" id="editUserModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Edit User</h3>
+                    <span class="close" onclick="closeModal('editUserModal')">&times;</span>
+                </div>
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId">
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="editUserEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select id="editUserRole" required>
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Locations Access</label>
+                        <div class="checkbox-group" id="editLocationsGroup">
+                            <label><input type="checkbox" value="botocan"> Botocan</label>
+                            <label><input type="checkbox" value="botocan2"> Botocan 2</label>
+                            <label><input type="checkbox" value="kalayaan01"> Kalayaan 01</label>
+                            <label><input type="checkbox" value="kalayaan02"> Kalayaan 02</label>
+                            <label><input type="checkbox" value="kalayaan03"> Kalayaan 03</label>
+                            <label><input type="checkbox" value="kalayaan04"> Kalayaan 04</label>
+                            <label><input type="checkbox" value="all"> All Locations</label>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeModal('editUserModal')">Cancel</button>
+                        <button type="submit">Update User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Reset Password Modal -->
+        <div class="modal" id="resetPasswordModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Reset Password</h3>
+                    <span class="close" onclick="closeModal('resetPasswordModal')">&times;</span>
+                </div>
+                <form id="resetPasswordForm">
+                    <input type="hidden" id="resetUserId">
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input type="password" id="resetPassword" required>
+                        <div class="password-requirements">
+                            <small>Password must contain:</small>
+                            <ul>
+                                <li id="req-length">At least 8 characters</li>
+                                <li id="req-upper">One uppercase letter</li>
+                                <li id="req-lower">One lowercase letter</li>
+                                <li id="req-number">One number</li>
+                                <li id="req-special">One special character</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="confirmPassword" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeModal('resetPasswordModal')">Cancel</button>
+                        <button type="submit">Reset Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Change Admin Password Modal -->
+        <div class="modal" id="changePasswordModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Change My Password</h3>
+                    <span class="close" onclick="closeModal('changePasswordModal')">&times;</span>
+                </div>
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label>Current Password</label>
+                        <input type="password" id="currentPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input type="password" id="newPassword" required>
+                        <div class="password-requirements">
+                            <small>Password must contain:</small>
+                            <ul>
+                                <li id="req2-length">At least 8 characters</li>
+                                <li id="req2-upper">One uppercase letter</li>
+                                <li id="req2-lower">One lowercase letter</li>
+                                <li id="req2-number">One number</li>
+                                <li id="req2-special">One special character</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm New Password</label>
+                        <input type="password" id="confirmNewPassword" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeModal('changePasswordModal')">Cancel</button>
+                        <button type="submit">Change Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Archive Confirmation Modal -->
+        <div class="modal" id="archiveModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Archive User Account</h3>
+                    <span class="close" onclick="closeModal('archiveModal')">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to archive the account: <strong id="archiveUsername"></strong>?</p>
+                    <p>This action will:</p>
+                    <ul>
+                        <li>Move the user to archived users</li>
+                        <li>Disable their access to the system</li>
+                        <li>Allow restoration later if needed</li>
+                    </ul>
+                    <div class="form-actions">
+                        <button type="button" onclick="closeModal('archiveModal')">Cancel</button>
+                        <button type="button" onclick="confirmArchive()" class="btn-danger">Archive User</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OTP Verification Modal -->
+        <div class="modal" id="otpModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Email Verification</h3>
+                </div>
+                <div class="otp-content">
+                    <p>A verification code has been sent to <span id="otpEmail"></span></p>
+                    <div class="form-group">
+                        <label>Enter 6-digit verification code</label>
+                        <input type="text" id="otpCode" maxlength="6" pattern="[0-9]{6}" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="resendOTP()">Resend Code</button>
+                        <button type="button" onclick="verifyOTP()">Verify</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+
+    <script>
+        let currentAction = null;
+        let pendingUserData = null;
+        let currentTab = 'active';
+        let userToArchive = null;
+
+        // Load users on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUsers();
+            setupPasswordValidation();
+        });
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+            loadUsers();
+        }
+
+        function loadUsers() {
+            const endpoint = currentTab === 'active' ? '/api/users' : '/api/users/archived';
+            fetch(endpoint)
+                .then(response => response.json())
+                .then(users => {
+                    // Get current user info
+                    fetch('/api/user-info')
+                        .then(response => response.json())
+                        .then(currentUser => {
+                            const tbody = document.getElementById('usersTableBody');
+                            tbody.innerHTML = '';
+                            
+                            users.forEach(user => {
+                                const isCurrentUser = user.username === currentUser.user_id;
+                                const row = document.createElement('tr');
+                                if (currentTab === 'active') {
+                                    row.innerHTML = `
+                                        <td>${user.username}</td>
+                                        <td><span class="role-badge ${user.role}">${user.role}</span></td>
+                                        <td>${user.locations || 'None'}</td>
+                                        <td><span class="status-badge active">Active</span></td>
+                                        <td>
+                                            <button class="btn-icon" onclick="editUser('${user.username}')" title="Edit User">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-icon" onclick="resetUserPassword('${user.username}')" title="Reset Password">
+                                                <i class="fas fa-key"></i>
+                                            </button>
+                                            ${!isCurrentUser ? `<button class="btn-icon danger" onclick="deleteUser('${user.username}')" title="Archive User"><i class="fas fa-archive"></i></button>` : ''}
+                                        </td>
+                                    `;
+                                } else {
+                                    row.innerHTML = `
+                                        <td>${user.username}</td>
+                                        <td><span class="role-badge ${user.role}">${user.role}</span></td>
+                                        <td>${user.locations || 'None'}</td>
+                                        <td><span class="status-badge archived">Archived</span></td>
+                                        <td>
+                                            <button class="btn-icon success" onclick="restoreUser('${user.username}')" title="Restore User">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
+                                            <button class="btn-icon danger" onclick="permanentDeleteUser('${user.username}')" title="Permanently Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    `;
+                                }
+                                tbody.appendChild(row);
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Error getting current user:', error);
+                        });
+                })
+                .catch(error => {
+                    console.error('Error loading users:', error);
+                    showNotification('Error loading users', 'error');
+                });
+        }
+
+        function showAddUserModal() {
+            document.getElementById('addUserModal').style.display = 'block';
+        }
+
+        function editUser(username) {
+            fetch(`/api/users/${username}`)
+                .then(response => response.json())
+                .then(user => {
+                    document.getElementById('editUserId').value = user.username;
+                    document.getElementById('editUserEmail').value = user.username;
+                    document.getElementById('editUserRole').value = user.role;
+                    
+                    // Set location checkboxes
+                    const locations = user.locations ? user.locations.split(',') : [];
+                    const checkboxes = document.querySelectorAll('#editLocationsGroup input[type="checkbox"]');
+                    checkboxes.forEach(cb => {
+                        cb.checked = locations.includes(cb.value);
+                    });
+                    
+                    document.getElementById('editUserModal').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error loading user:', error);
+                    showNotification('Error loading user details', 'error');
+                });
+        }
+
+        function resetUserPassword(username) {
+            // Check if it's the current user
+            fetch('/api/user-info')
+                .then(response => response.json())
+                .then(currentUser => {
+                    if (username === currentUser.user_id) {
+                        // Open change password modal for current user
+                        changeAdminPassword();
+                    } else {
+                        // Open reset password modal for other users
+                        document.getElementById('resetUserId').value = username;
+                        document.getElementById('resetPasswordModal').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error getting user info:', error);
+                    // Fallback to reset password modal
+                    document.getElementById('resetUserId').value = username;
+                    document.getElementById('resetPasswordModal').style.display = 'block';
+                });
+        }
+
+        function deleteUser(username) {
+            userToArchive = username;
+            document.getElementById('archiveUsername').textContent = username;
+            document.getElementById('archiveModal').style.display = 'block';
+        }
+
+        function confirmArchive() {
+            pendingUserData = { username: userToArchive };
+            currentAction = 'archive';
+            closeModal('archiveModal');
+            sendOTP();
+        }
+
+        function restoreUser(username) {
+            if (confirm(`Are you sure you want to restore user ${username}?`)) {
+                pendingUserData = { username };
+                currentAction = 'restore';
+                sendOTP();
+            }
+        }
+
+        function permanentDeleteUser(username) {
+            if (confirm(`Are you sure you want to PERMANENTLY delete user ${username}? This action cannot be undone!`)) {
+                pendingUserData = { username };
+                currentAction = 'permanent_delete';
+                sendOTP();
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            // Reset forms
+            const form = document.querySelector(`#${modalId} form`);
+            if (form) form.reset();
+        }
+
+        // Form submissions
+        document.getElementById('addUserForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('newUserEmail').value;
+            const password = document.getElementById('newUserPassword').value;
+            const role = document.getElementById('newUserRole').value;
+            
+            // Validate email format
+            if (!isValidEmail(email)) {
+                showNotification('Please enter a valid email address', 'error');
+                return;
+            }
+            
+            // Validate password
+            if (!isValidPassword(password)) {
+                showNotification('Password does not meet security requirements', 'error');
+                return;
+            }
+            
+            const locations = Array.from(document.querySelectorAll('#addUserModal input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            
+            pendingUserData = { email, password, role, locations: locations.join(',') };
+            currentAction = 'create';
+            
+            // Send OTP
+            sendOTP(email);
+        });
+
+        document.getElementById('editUserForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const oldUsername = document.getElementById('editUserId').value;
+            const newEmail = document.getElementById('editUserEmail').value;
+            const role = document.getElementById('editUserRole').value;
+            
+            if (!isValidEmail(newEmail)) {
+                showNotification('Please enter a valid email address', 'error');
+                return;
+            }
+            
+            const locations = Array.from(document.querySelectorAll('#editLocationsGroup input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            
+            pendingUserData = { oldUsername, newEmail, role, locations: locations.join(',') };
+            currentAction = 'update';
+            
+            // Send OTP if email changed
+            if (oldUsername !== newEmail) {
+                sendOTP(newEmail);
+            } else {
+                updateUser();
+            }
+        });
+
+        document.getElementById('resetPasswordForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('resetUserId').value;
+            const password = document.getElementById('resetPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!isValidPassword(password)) {
+                showNotification('Password does not meet security requirements', 'error');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showNotification('Passwords do not match', 'error');
+                return;
+            }
+            
+            pendingUserData = { username, password };
+            currentAction = 'reset';
+            
+            // Get user email for OTP
+            fetch(`/api/users/${username}`)
+                .then(response => response.json())
+                .then(user => {
+                    sendOTP(user.username); // username is email
+                })
+                .catch(error => {
+                    console.error('Error getting user email:', error);
+                    showNotification('Error sending verification code', 'error');
+                });
+        });
+
+        // Change admin password form
+        document.getElementById('changePasswordForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmNewPassword').value;
+            
+            if (!isValidPassword(newPassword)) {
+                showNotification('New password does not meet security requirements', 'error');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showNotification('New passwords do not match', 'error');
+                return;
+            }
+            
+            pendingUserData = { old_password: currentPassword, new_password: newPassword };
+            currentAction = 'change_admin_password';
+            
+            // Send OTP to admin's email from database
+            sendOTP();
+        });
+
+        function sendOTP() {
+            fetch('/api/send-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Extract email from success message
+                    const emailMatch = result.message.match(/sent to (.+)$/);
+                    const email = emailMatch ? emailMatch[1] : 'your email';
+                    document.getElementById('otpEmail').textContent = email;
+                    document.getElementById('otpModal').style.display = 'block';
+                } else {
+                    showNotification(result.error || 'Error sending verification code', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error sending OTP:', error);
+                showNotification('Error sending verification code', 'error');
+            });
+        }
+
+        function verifyOTP() {
+            const otpCode = document.getElementById('otpCode').value;
+            
+            if (otpCode.length !== 6) {
+                showNotification('Please enter a 6-digit code', 'error');
+                return;
+            }
+            
+            fetch('/api/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ otp: otpCode })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    closeModal('otpModal');
+                    
+                    if (currentAction === 'create') {
+                        createUser();
+                    } else if (currentAction === 'update') {
+                        updateUser();
+                    } else if (currentAction === 'reset') {
+                        resetPassword();
+                    } else if (currentAction === 'change_admin_password') {
+                        changeAdminPasswordAPI();
+                    } else if (currentAction === 'archive') {
+                        archiveUser();
+                    } else if (currentAction === 'restore') {
+                        restoreUserAPI();
+                    } else if (currentAction === 'permanent_delete') {
+                        permanentDeleteUserAPI();
+                    }
+                } else {
+                    showNotification(result.error || 'Invalid verification code', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error verifying OTP:', error);
+                showNotification('Error verifying code', 'error');
+            });
+        }
+
+        function resendOTP() {
+            const email = document.getElementById('otpEmail').textContent;
+            sendOTP(email);
+        }
+
+        function createUser() {
+            fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingUserData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showNotification('User created successfully', 'success');
+                    closeModal('addUserModal');
+                    loadUsers();
+                } else {
+                    showNotification(result.error || 'Error creating user', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error creating user:', error);
+                showNotification('Error creating user', 'error');
+            });
+        }
+
+        function updateUser() {
+            fetch('/api/users/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingUserData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showNotification('User updated successfully', 'success');
+                    closeModal('editUserModal');
+                    loadUsers();
+                } else {
+                    showNotification(result.error || 'Error updating user', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error updating user:', error);
+                showNotification('Error updating user', 'error');
+            });
+        }
+
+        function resetPassword() {
+            fetch('/api/users/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingUserData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showNotification('Password reset successfully', 'success');
+                    closeModal('resetPasswordModal');
+                } else {
+                    showNotification(result.error || 'Error resetting password', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error resetting password:', error);
+                showNotification('Error resetting password', 'error');
+            });
+        }
+
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        function isValidPassword(password) {
+            const minLength = password.length >= 8;
+            const hasUpper = /[A-Z]/.test(password);
+            const hasLower = /[a-z]/.test(password);
+            const hasNumber = /\d/.test(password);
+            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+            
+            return minLength && hasUpper && hasLower && hasNumber && hasSpecial;
+        }
+
+        function changeAdminPassword() {
+            document.getElementById('changePasswordModal').style.display = 'block';
+        }
+
+        function changeAdminPasswordAPI() {
+            fetch('/api/admin/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingUserData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showNotification('Password changed successfully', 'success');
+                    closeModal('changePasswordModal');
+                } else {
+                    showNotification(result.error || 'Error changing password', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error changing password:', error);
+                showNotification('Error changing password', 'error');
+            });
+        }
+
+        function setupPasswordValidation() {
+            const passwordInput = document.getElementById('resetPassword');
+            if (passwordInput) {
+                passwordInput.addEventListener('input', function() {
+                    const password = this.value;
+                    
+                    updateRequirement('req-length', password.length >= 8);
+                    updateRequirement('req-upper', /[A-Z]/.test(password));
+                    updateRequirement('req-lower', /[a-z]/.test(password));
+                    updateRequirement('req-number', /\d/.test(password));
+                    updateRequirement('req-special', /[!@#$%^&*(),.?":{}|<>]/.test(password));
+                });
+            }
+            
+            const newPasswordInput = document.getElementById('newPassword');
+            if (newPasswordInput) {
+                newPasswordInput.addEventListener('input', function() {
+                    const password = this.value;
+                    
+                    updateRequirement('req2-length', password.length >= 8);
+                    updateRequirement('req2-upper', /[A-Z]/.test(password));
+                    updateRequirement('req2-lower', /[a-z]/.test(password));
+                    updateRequirement('req2-number', /\d/.test(password));
+                    updateRequirement('req2-special', /[!@#$%^&*(),.?":{}|<>]/.test(password));
+                });
+            }
+        }
+
+        function updateRequirement(id, met) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.style.color = met ? 'green' : 'red';
+                element.style.textDecoration = met ? 'line-through' : 'none';
+            }
+        }
+
+        function archiveUser() {
+            fetch('/api/users/archive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingUserData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showNotification('User archived successfully', 'success');
+                    loadUsers();
+                } else {
+                    showNotification(result.error || 'Error archiving user', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error archiving user:', error);
+                showNotification('Error archiving user', 'error');
+            });
+        }
+
+        function restoreUserAPI() {
+            fetch('/api/users/restore', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingUserData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showNotification('User restored successfully', 'success');
+                    loadUsers();
+                } else {
+                    showNotification(result.error || 'Error restoring user', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error restoring user:', error);
+                showNotification('Error restoring user', 'error');
+            });
+        }
+
+        function permanentDeleteUserAPI() {
+            fetch('/api/users/permanent-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingUserData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showNotification('User permanently deleted', 'success');
+                    loadUsers();
+                } else {
+                    showNotification(result.error || 'Error deleting user', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting user:', error);
+                showNotification('Error deleting user', 'error');
+            });
+        }
+
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            // Add to page
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Include sidebar functionality
+        document.getElementById('menuToggle').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+            document.getElementById('mainContent').classList.toggle('expanded');
+        });
+    </script>
+
+    <style>
+        .users-table-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .users-table th,
+        .users-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .users-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .role-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .role-badge.admin {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .role-badge.user {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-badge.active {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            padding: 8px;
+            margin: 0 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+
+        .btn-icon:hover {
+            background-color: #f8f9fa;
+            color: #495057;
+        }
+
+        .btn-icon.danger:hover {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+        }
+
+        .close {
+            font-size: 24px;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .modal form {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group small {
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            margin-bottom: 0;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .form-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .form-actions button[type="submit"] {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .form-actions button[type="button"] {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .password-requirements {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .password-requirements ul {
+            margin: 5px 0 0 0;
+            padding-left: 20px;
+        }
+
+        .password-requirements li {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .otp-content {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 4px;
+            color: white;
+            font-weight: 500;
+            z-index: 1001;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification.success {
+            background-color: #28a745;
+        }
+
+        .notification.error {
+            background-color: #dc3545;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+            margin-right: 10px;
+        }
+
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+
+        .content-header div {
+            display: flex;
+            gap: 10px;
+        }
+
+        .tabs-container {
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #eee;
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6c757d;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+
+        .tab-button:hover {
+            color: #007bff;
+        }
+
+        .status-badge.archived {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-icon.success:hover {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-body ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .modal-body li {
+            margin: 5px 0;
+        }
+    </style>
+</body>
+</html>

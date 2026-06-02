@@ -1,0 +1,3614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main Dashboard - CBK</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/all.min.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body style="font-family: 'Poppins', sans-serif;">
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    {% include 'dashboard_components/admin_sidebar.html' %}
+
+    <div class="main-content" id="mainContent">
+        <div class="top-nav">
+            <div class="nav-left">
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">EcoHydro Main Dashboard</h1>
+            </div>
+            <div class="nav-right">
+                <div class="user-menu">
+                    <div class="user-avatar">{{ session.user_id[0].upper() if session.user_id else 'U' }}</div>
+                    <span>{{ session.user_id if session.user_id else 'User' }}</span>
+                    <div class="user-dropdown">
+                        <a href="{{ url_for('logout') }}">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <!-- Enhanced Hero Section -->
+            <div class="dashboard-hero">
+                <div class="hero-content">
+                    <div class="hero-left">
+                        <div class="hero-text">
+                            <!-- KALAYAAN TITLE - COMMENTED OUT FOR BOTOCAN-ONLY FOCUS -->
+                            <!-- {% if 'kalayaan01' in session.locations or 'kalayaan02' in session.locations or 'kalayaan03' in session.locations or 'kalayaan04' in session.locations or session.location == 'kalayaan' or session.user_id == 'kalayaan' %}
+                            <h1 class="hero-title">Kalayaan Power Plant - Weather Center</h1>
+                            <p class="hero-subtitle">Real-time weather monitoring and forecasting for Kalayaan Pumped Storage Power Plant (KPSPP)</p>
+                            {% else %} -->
+                            <h1 class="hero-title">Botocan Power Plant - Weather Center</h1>
+                            <p class="hero-subtitle">Real-time weather monitoring and forecasting for Botocan Hydroelectric Power Plant (BHEPP)</p>
+                            <!-- {% endif %} -->
+                            <div class="hero-badges">
+                                <span class="status-badge online"><i class="fas fa-circle"></i> 
+                                <!-- KALAYAAN STATUS - COMMENTED OUT FOR BOTOCAN-ONLY FOCUS -->
+                                <!-- {% if 'kalayaan01' in session.locations or 'kalayaan02' in session.locations or 'kalayaan03' in session.locations or 'kalayaan04' in session.locations or session.location == 'kalayaan' or session.user_id == 'kalayaan' %}
+                                KPSPP Online
+                                {% else %} -->
+                                BHEPP Online
+                                <!-- {% endif %} -->
+                                </span>
+                                <span class="status-badge updated"><i class="fas fa-clock"></i> Last Updated: <span id="lastUpdate">2 min ago</span></span>
+                            </div>
+                        </div>
+                        <div class="hero-actions">
+                            <!-- <button class="hero-btn primary" id="startMonitoringBtn"><i class="fas fa-play"></i> Start Monitoring</button> -->
+                            <button class="hero-btn secondary" id="settingsBtn"><i class="fas fa-cog"></i> Settings</button>
+                        </div>
+                    </div>
+                    <div class="hero-right">
+                        <div class="hero-stats-grid">
+                            <div class="hero-stat">
+                                <div class="stat-icon temperature"><i class="fas fa-thermometer-half"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-number" id="heroTempStat">--</div>
+                                    <div class="stat-label">Temperature</div>
+                                    <div class="stat-trend" id="heroTempTrend">°C</div>
+                                </div>
+                            </div>
+                            <div class="hero-stat">
+                                <div class="stat-icon humidity"><i class="fas fa-tint"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-number" id="heroHumidityStat">--</div>
+                                    <div class="stat-label">Humidity</div>
+                                    <div class="stat-trend" id="heroHumidityTrend">%</div>
+                                </div>
+                            </div>
+                            <div class="hero-stat">
+                                <div class="stat-icon wind"><i class="fas fa-wind"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-number" id="heroWindStat">--</div>
+                                    <div class="stat-label">Wind Speed</div>
+                                    <div class="stat-trend" id="heroWindTrend">m/s</div>
+                                </div>
+                            </div>
+                            <div class="hero-stat">
+                                <div class="stat-icon solar"><i class="fas fa-sun"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-number" id="heroSolarStat">--</div>
+                                    <div class="stat-label">Solar Radiation</div>
+                                    <div class="stat-trend" id="heroSolarTrend">W/m²</div>
+                                </div>
+                            </div>
+                            <div class="hero-stat">
+                                <div class="stat-icon rain"><i class="fas fa-cloud-rain"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-number" id="heroRainStat">--</div>
+                                    <div class="stat-label">Rainfall</div>
+                                    <div class="stat-trend" id="heroRainTrend">mm</div>
+                                </div>
+                            </div>
+                            <div class="hero-stat">
+                                <div class="stat-icon pressure"><i class="fas fa-compress-arrows-alt"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-number" id="heroPressureStat">--</div>
+                                    <div class="stat-label">Pressure</div>
+                                    <div class="stat-trend" id="heroPressureTrend">hPa</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions Bar -->
+            <div class="quick-actions">
+                <button class="action-btn primary active" id="liveDataBtn">
+                    <i class="fas fa-broadcast-tower"></i>
+                    <span  style="font-family: poppins;">Live Data</span>
+                </button>
+                <button class="action-btn secondary" id="forecastBtn">
+                    <i class="fas fa-chart-line"></i>
+                    <span  style="font-family: poppins;">7-Day Forecast</span>
+                </button>
+                <button class="action-btn secondary" id="alertsBtn">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span  style="font-family: poppins;">Alerts</span>
+                </button>
+                <button class="action-btn secondary" id="exportBtn">
+                    <i class="fas fa-download"></i>
+                    <span  style="font-family: poppins;">Export</span>
+                </button>
+            </div>
+
+            <!-- Main Dashboard Content -->
+            <div class="dashboard-main-enhanced">
+
+
+                <!-- Enhanced Real-Time Monitoring -->
+                <div class="monitoring-section" id="liveDataSection">
+                    <div class="section-header-enhanced">
+                        <div class="section-info">
+                            <div class="section-icon">
+                                <i class="fas fa-satellite-dish"></i>
+                            </div>
+                            <div class="section-text">
+                                <h2 class="section-title">Real-Time Monitoring</h2>
+                                <p class="section-desc">Live weather data and nowcasting analysis</p>
+                            </div>
+                        </div>
+                        <!-- <div class="section-controls">
+                            <div class="station-control-panel">
+                                <div class="station-selector">
+                                    <div class="station-header">
+                                        <label class="control-label">Active Station</label>
+                                        {% if session.role == 'admin' %}
+                                        <div class="station-count">2 Available</div>
+                                        {% else %}
+                                        <div class="station-count">1 Available</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="station-dropdown-wrapper">
+                                        <select id="forecast15Location" class="station-select">
+                                            <!-- ADMIN AND KALAYAAN OPTIONS - COMMENTED OUT FOR BOTOCAN-ONLY FOCUS -->
+                                            <!-- {% if session.role == 'admin' %}
+                                            <option value="botocan" data-type="power" data-status="online">🏭 Botocan (BHEPP)</option>
+                                            <option value="kalayaan" data-type="power" data-status="online">⚡ Kalayaan (KPSPP)</option>
+                                            {% elif 'kalayaan01' in session.locations or 'kalayaan02' in session.locations or 'kalayaan03' in session.locations or 'kalayaan04' in session.locations or session.location == 'kalayaan' or session.user_id == 'kalayaan' %}
+                                            <option value="kalayaan" data-type="power" data-status="online">⚡ Kalayaan (KPSPP)</option>
+                                            {% else %} -->
+                                            <!-- <option value="botocan" data-type="power" data-status="online">🏭 Botocan (BHEPP)</option>
+                                            <!-- {% endif %} -->
+                                        <!-- </select>
+                                        <div class="station-info" id="stationInfo">
+                                            <div class="station-details">
+                                                <!-- KALAYAAN STATION DETAILS - COMMENTED OUT FOR BOTOCAN-ONLY FOCUS -->
+                                                <!-- {% if 'kalayaan01' in session.locations or 'kalayaan02' in session.locations or 'kalayaan03' in session.locations or 'kalayaan04' in session.locations or session.location == 'kalayaan' or session.user_id == 'kalayaan' %}
+                                                <span class="station-type">Pumped Storage Plant</span>
+                                                <span class="station-location">Kalayaan, Laguna</span>
+                                                {% else %} -->
+                                                <!-- <span class="station-type">Hydroelectric Plant</span>
+                                                <span class="station-location">Botocan, Laguna</span>
+                                                <!-- {% endif %} -->
+                                            <!-- </div>
+                                            <div class="station-status online">
+                                                <i class="fas fa-circle"></i>
+                                                <span>Online</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="update-panel">
+                                    <div class="update-info">
+                                        <div class="update-label">Next Update</div>
+                                        <div class="update-time" id="forecastTime">4:45:57 PM</div>
+                                        <div class="update-countdown" id="updateCountdown">in 12m 34s</div>
+                                    </div>
+                                    <div class="data-freshness">
+                                        <div class="freshness-indicator">
+                                            <span class="freshness-dot fresh"></span>
+                                            <span class="freshness-text">Data Fresh</span>
+                                        </div>
+                                        <div class="last-sync">Last sync: 2 min ago</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div> -->
+                    </div>
+                    
+                    <div class="gauge-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                        <div class="gauge-card">
+                            <div class="gauge-header">
+                                <h3>Temperature</h3>
+                                <span class="unit">°C</span>
+                            </div>
+                            <div class="gauge-container">
+                                <canvas id="forecast15TempGauge" width="200" height="200"></canvas>
+                                <div class="gauge-value" id="forecast15Temp">--</div>
+                            </div>
+                        </div>
+                        <div class="gauge-card">
+                            <div class="gauge-header">
+                                <h3>Humidity</h3>
+                                <span class="unit">%</span>
+                            </div>
+                            <div class="gauge-container">
+                                <canvas id="forecast15HumidityGauge" width="200" height="200"></canvas>
+                                <div class="gauge-value" id="forecast15Humidity">--</div>
+                            </div>
+                        </div>
+                        <div class="gauge-card">
+                            <div class="gauge-header">
+                                <h3>Wind Speed</h3>
+                                <span class="unit">m/s</span>
+                            </div>
+                            <div class="gauge-container">
+                                <canvas id="forecast15WindGauge" width="200" height="200"></canvas>
+                                <div class="gauge-value" id="forecast15Wind">--</div>
+                            </div>
+                        </div>
+                        <div class="gauge-card">
+                            <div class="gauge-header">
+                                <h3>Solar Radiation</h3>
+                                <span class="unit">W/m²</span>
+                            </div>
+                            <div class="gauge-container">
+                                <canvas id="forecast15SolarGauge" width="200" height="200"></canvas>
+                                <div class="gauge-value" id="forecast15Solar">--</div>
+                            </div>
+                        </div>
+                        <div class="gauge-card">
+                            <div class="gauge-header">
+                                <h3>Rainfall</h3>
+                                <span class="unit">mm</span>
+                            </div>
+                            <div class="gauge-container">
+                                <canvas id="forecast15RainGauge" width="200" height="200"></canvas>
+                                <div class="gauge-value" id="forecast15Rain">--</div>
+                            </div>
+                        </div>
+                        <div class="gauge-card">
+                            <div class="gauge-header">
+                                <h3>Pressure</h3>
+                                <span class="unit">hPa</span>
+                            </div>
+                            <div class="gauge-container">
+                                <canvas id="forecast15PressureGauge" width="200" height="200"></canvas>
+                                <div class="gauge-value" id="forecast15Pressure">--</div>
+                            </div>
+                        </div>
+                        <div class="gauge-card">
+                            <div class="gauge-header">
+                                <h3>Wind Direction</h3>
+                                <span class="unit">°</span>
+                            </div>
+                            <div class="gauge-container">
+                                <canvas id="forecast15WindDirGauge" width="200" height="200"></canvas>
+                                <div class="gauge-value" id="forecast15WindDirection">--</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Weather Forecast Charts -->
+                <div id="forecastSection" style="margin-bottom: 30px; display: none;">
+                    <div class="section-header-enhanced">
+                        <div class="section-info">
+                            <div class="section-icon">
+                                <i class="fas fa-cloud-sun"></i>
+                            </div>
+                            <div class="section-text">
+                                <h2 class="section-title">Weather Forecast</h2>
+                                <p class="section-desc">7-day weather prediction and trend analysis</p>
+                            </div>
+                        </div>
+                        <div class="section-controls">
+                            <div class="station-control-panel">
+                                <div class="station-selector">
+                                    <div class="station-header">
+                                        <label class="control-label">Location</label>
+                                    </div>
+                                    <div class="station-dropdown-wrapper">
+                                        <!-- ADMIN AND KALAYAAN FORECAST LOCATION - COMMENTED OUT FOR BOTOCAN-ONLY FOCUS -->
+                                        <!-- {% if session.role == 'admin' %}
+                                        <select id="forecastLocation" class="station-select">
+                                            <option value="botocan">🏭 Botocan (BHEPP)</option>
+                                            <option value="kalayaan">⚡ Kalayaan (KPSPP)</option>
+                                        </select>
+                                        {% elif 'kalayaan01' in session.locations or 'kalayaan02' in session.locations or 'kalayaan03' in session.locations or 'kalayaan04' in session.locations or session.location == 'kalayaan' or session.user_id == 'kalayaan' %}
+                                        <div class="station-select">⚡ Kalayaan (KPSPP)</div>
+                                        {% else %} -->
+                                        <div class="station-select">🏭 Botocan (BHEPP)</div>
+                                        <!-- {% endif %} -->
+                                    </div>
+                                </div>
+                                <div class="station-selector">
+                                    <div class="station-header">
+                                        <label class="control-label">Grouping</label>
+                                    </div>
+                                    <div class="station-dropdown-wrapper">
+                                        <select id="forecastGrouping" class="station-select">
+                                            <option value="hourly" selected>Weekly (Daily + Hourly)</option>
+                                            <option value="custom">Custom</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="station-selector">
+                                    <div class="station-header">
+                                        <label class="control-label">Chart Type</label>
+                                    </div>
+                                    <div class="station-dropdown-wrapper">
+                                        <select id="forecastChartType" class="station-select">
+                                            <option value="line">📈 Line</option>
+                                            <option value="bar">📊 Bar</option>
+                                            <option value="area">📈 Area</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="station-selector" id="customDateRange" style="display: none; margin-top: 15px;">
+                                <div class="station-header">
+                                    <label class="control-label">Date Range</label>
+                                </div>
+                                <div class="date-range-container">
+                                    <div class="date-input-group">
+                                        <label>Start Date & Time</label>
+                                        <input type="datetime-local" id="startDateTime" class="datetime-input">
+                                    </div>
+                                    <div class="date-input-group">
+                                        <label>End Date & Time</label>
+                                        <input type="datetime-local" id="endDateTime" class="datetime-input">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Forecast Chart Controls -->
+                    <div style="background: #1f2937; border-radius: 12px; padding: 20px; border: 1px solid #374151; margin-bottom: 20px;">
+
+                        
+                        <!-- Parameter Selection -->
+                        <div style="margin-bottom: 15px;">
+                            <label style="color: #fbbf24; font-weight: 600; margin-bottom: 8px; display: block;">Select Weather Parameters:</label>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px;">
+                                <label style="color: #d1d5db; font-size: 13px; cursor: pointer; display: flex; align-items: center;">
+                                    <input type="checkbox" value="t" data-color="#ef4444" style="margin-right: 6px;" checked>
+                                    <span>Temperature (°C)</span>
+                                </label>
+                                <label style="color: #d1d5db; font-size: 13px; cursor: pointer; display: flex; align-items: center;">
+                                    <input type="checkbox" value="rh" data-color="#22c55e" style="margin-right: 6px;">
+                                    <span>Humidity (%)</span>
+                                </label>
+                                <label style="color: #d1d5db; font-size: 13px; cursor: pointer; display: flex; align-items: center;">
+                                    <input type="checkbox" value="ws" data-color="#3b82f6" style="margin-right: 6px;">
+                                    <span>Wind Speed (m/s)</span>
+                                </label>
+                                <label style="color: #d1d5db; font-size: 13px; cursor: pointer; display: flex; align-items: center;">
+                                    <input type="checkbox" value="sr" data-color="#f59e0b" style="margin-right: 6px;">
+                                    <span>Solar Radiation (W/m²)</span>
+                                </label>
+                                <label style="color: #d1d5db; font-size: 13px; cursor: pointer; display: flex; align-items: center;">
+                                    <input type="checkbox" value="rr" data-color="#06b6d4" style="margin-right: 6px;">
+                                    <span>Rainfall (mm)</span>
+                                </label>
+                                <label style="color: #d1d5db; font-size: 13px; cursor: pointer; display: flex; align-items: center;">
+                                    <input type="checkbox" value="sp" data-color="#8b5cf6" style="margin-right: 6px;">
+                                    <span>Pressure (hPa)</span>
+                                </label>
+                                <label style="color: #d1d5db; font-size: 13px; cursor: pointer; display: flex; align-items: center;">
+                                    <input type="checkbox" value="wd" data-color="#f97316" style="margin-right: 6px;">
+                                    <span>Wind Direction (°)</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Chart Controls -->
+                        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px; padding: 15px; background: #374151; border-radius: 8px;">
+                            <button class="chart-control-btn" id="panLeftBtn" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                                <i class="fas fa-arrow-left"></i> Pan Left
+                            </button>
+                            <button class="chart-control-btn" id="panRightBtn" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                                <i class="fas fa-arrow-right"></i> Pan Right
+                            </button>
+                            <button class="chart-control-btn" id="zoomInBtn" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                                <i class="fas fa-search-plus"></i> Zoom In
+                            </button>
+                            <button class="chart-control-btn" id="zoomOutBtn" style="background: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                                <i class="fas fa-search-minus"></i> Zoom Out
+                            </button>
+                            <button class="chart-control-btn" id="resetZoomBtn" style="background: #6b7280; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                                <i class="fas fa-undo"></i> Reset Zoom
+                            </button>
+                            <button class="chart-control-btn" id="fullscreenBtn" style="background: #6b7280; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                                <i class="fas fa-expand"></i> Fullscreen
+                            </button>
+                            <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+                                <span style="color: #d1d5db; font-size: 12px;">Confidence:</span>
+                                <div class="confidence-indicator" style="display: flex; align-items: center; gap: 5px;">
+                                    <div style="width: 60px; height: 4px; background: #4b5563; border-radius: 2px; overflow: hidden;">
+                                        <div style="width: 85%; height: 100%; background: #10b981; transition: width 0.5s;"></div>
+                                    </div>
+                                    <span style="color: #10b981; font-size: 12px; font-weight: 600;">85%</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Chart Container -->
+                        <div class="chart-container" style="position: relative; height: 450px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius: 8px; padding: 15px; border: 1px solid #374151;">
+                            <canvas id="forecastChart"></canvas>
+                            <div class="chart-loading" id="chartLoading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #9ca3af; display: none;">
+                                <i class="fas fa-spinner fa-spin"></i> Loading forecast data...
+                            </div>
+                        </div>
+                        
+                        <!-- Chart Statistics -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 15px;">
+                            <div class="chart-stat" style="background: #374151; padding: 12px; border-radius: 6px; text-align: center;">
+                                <div style="color: #9ca3af; font-size: 11px; margin-bottom: 4px;">AVG TEMP</div>
+                                <div style="color: #ef4444; font-weight: 600; font-size: 14px;" id="avgTemp">--°C</div>
+                            </div>
+                            <div class="chart-stat" style="background: #374151; padding: 12px; border-radius: 6px; text-align: center;">
+                                <div style="color: #9ca3af; font-size: 11px; margin-bottom: 4px;">AVG HUMIDITY</div>
+                                <div style="color: #22c55e; font-weight: 600; font-size: 14px;" id="avgHumidity">--%</div>
+                            </div>
+                            <div class="chart-stat" style="background: #374151; padding: 12px; border-radius: 6px; text-align: center;">
+                                <div style="color: #9ca3af; font-size: 11px; margin-bottom: 4px;">MAX WIND</div>
+                                <div style="color: #3b82f6; font-weight: 600; font-size: 14px;" id="maxWind">-- m/s</div>
+                            </div>
+                            <div class="chart-stat" style="background: #374151; padding: 12px; border-radius: 6px; text-align: center;">
+                                <div style="color: #9ca3af; font-size: 11px; margin-bottom: 4px;">AVG SOLAR</div>
+                                <div style="color: #f59e0b; font-weight: 600; font-size: 14px;" id="avgSolar">-- W/m²</div>
+                            </div>
+                            <div class="chart-stat" style="background: #374151; padding: 12px; border-radius: 6px; text-align: center;">
+                                <div style="color: #9ca3af; font-size: 11px; margin-bottom: 4px;">TOTAL RAIN</div>
+                                <div style="color: #06b6d4; font-weight: 600; font-size: 14px;" id="totalRain">-- mm</div>
+                            </div>
+                            <div class="chart-stat" style="background: #374151; padding: 12px; border-radius: 6px; text-align: center;">
+                                <div style="color: #9ca3af; font-size: 11px; margin-bottom: 4px;">AVG PRESSURE</div>
+                                <div style="color: #8b5cf6; font-weight: 600; font-size: 14px;" id="avgPressure">-- hPa</div>
+                            </div>
+                            <div class="chart-stat" style="background: #374151; padding: 12px; border-radius: 6px; text-align: center;">
+                                <div style="color: #9ca3af; font-size: 11px; margin-bottom: 4px;">AVG WIND DIR</div>
+                                <div style="color: #f97316; font-weight: 600; font-size: 14px;" id="avgWindDir">--°</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 
+    ============================================================================
+    JAVASCRIPT SECTION - Dashboard Functionality
+    ============================================================================
+    This script handles all the interactive functionality of the dashboard:
+    1. Sidebar navigation and responsive behavior
+    2. Real-time data fetching and gauge updates
+    3. Chart.js integration for weather forecasts
+    4. Tab switching between Live Data and Forecast views
+    5. User interaction handlers (buttons, dropdowns, etc.)
+    ============================================================================
+    -->
+    <script>
+        // ============================================================================
+        // MAIN APPLICATION INITIALIZATION
+        // ============================================================================
+        // Wait for DOM to be fully loaded before initializing JavaScript
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+            // ============================================================================
+            // SIDEBAR NAVIGATION LOGIC
+            // ============================================================================
+            // Handles responsive sidebar behavior for mobile and desktop
+            if (menuToggle && mainContent) {
+                menuToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const sidebar = document.getElementById('sidebar');
+                    if (sidebar) {
+                        if (window.innerWidth <= 768) {
+                            sidebar.classList.toggle('mobile-open');
+                            if (sidebarOverlay) sidebarOverlay.classList.toggle('active');
+                            document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';
+                        } else {
+                            sidebar.classList.toggle('collapsed');
+                            mainContent.classList.toggle('expanded');
+                        }
+                    }
+                });
+            }
+
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', function() {
+                    const sidebar = document.getElementById('sidebar');
+                    if (sidebar) {
+                        sidebar.classList.remove('mobile-open');
+                        sidebarOverlay.classList.remove('active');
+                        document.body.style.overflow = '';
+                    }
+                });
+            }
+
+            // Submenu functionality
+            const submenuItems = document.querySelectorAll('.has-submenu');
+            submenuItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const submenu = this.nextElementSibling;
+                    const isExpanded = this.classList.contains('expanded');
+                    
+                    submenuItems.forEach(otherItem => {
+                        if (otherItem !== this) {
+                            otherItem.classList.remove('expanded');
+                            const otherSubmenu = otherItem.nextElementSibling;
+                            if (otherSubmenu) otherSubmenu.classList.remove('expanded');
+                        }
+                    });
+                    
+                    if (isExpanded) {
+                        this.classList.remove('expanded');
+                        if (submenu) submenu.classList.remove('expanded');
+                    } else {
+                        this.classList.add('expanded');
+                        if (submenu) submenu.classList.add('expanded');
+                    }
+                });
+            });
+
+            // Update clock
+            function updateClock() {
+                const timeElement = document.getElementById('currentTime');
+                if (timeElement) {
+                    timeElement.textContent = new Date().toLocaleTimeString();
+                }
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
+
+            // ============================================================================
+            // DASHBOARD INITIALIZATION SEQUENCE
+            // ============================================================================
+            // Load initial data and set up all dashboard components
+            loadDashboardData();        // Load general dashboard statistics
+            loadHeroData();            // Load weather data for hero section
+            
+            // Initialize interactive components
+            initializeForecastChart();    // Set up Chart.js for weather forecasts
+            initializeForecastGauges();   // Create canvas-based gauge visualizations
+            initializeForecastControls(); // Set up tab switching and controls
+            
+            // Add dropdown event listeners
+            const forecastLocation = document.getElementById('forecastLocation');
+            const forecastGrouping = document.getElementById('forecastGrouping');
+            const forecastChartType = document.getElementById('forecastChartType');
+            const paramCheckboxes = document.querySelectorAll('#forecastSection input[type="checkbox"]');
+            
+            if (forecastLocation) {
+                forecastLocation.addEventListener('change', function() {
+                    console.log('Forecast location changed to:', this.value);
+                    updateForecastChart();
+                });
+            }
+            
+            // Add event listener for Active Station dropdown
+            const forecast15Location = document.getElementById('forecast15Location');
+            if (forecast15Location) {
+                forecast15Location.addEventListener('change', function() {
+                    console.log('Active station changed to:', this.value);
+                    loadHeroData(); // Update hero stats
+                    load15MinuteForecast(); // Update gauges
+                });
+            }
+            
+            if (forecastGrouping) {
+                forecastGrouping.addEventListener('change', function() {
+                    console.log('Forecast grouping changed to:', this.value);
+                    handleGroupingChange(this.value);
+                    updateForecastChart();
+                });
+            }
+            
+            // Initialize date range picker
+            initializeDateRangePicker();
+            
+            if (forecastChartType) {
+                forecastChartType.addEventListener('change', function() {
+                    console.log('Chart type changed to:', this.value);
+                    changeForecastChartType(this.value);
+                });
+            }
+            
+            paramCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    console.log('Parameter checkbox changed:', this.value, this.checked);
+                    updateForecastChart();
+                });
+            });
+            
+            // Add event listeners for custom date range
+            const startDateTime = document.getElementById('startDateTime');
+            const endDateTime = document.getElementById('endDateTime');
+            
+            if (startDateTime) {
+                startDateTime.addEventListener('change', function() {
+                    validateDateRange();
+                    if (document.getElementById('forecastGrouping')?.value === 'custom') {
+                        updateForecastChart();
+                    }
+                });
+            }
+            
+            if (endDateTime) {
+                endDateTime.addEventListener('change', function() {
+                    validateDateRange();
+                    if (document.getElementById('forecastGrouping')?.value === 'custom') {
+                        updateForecastChart();
+                    }
+                });
+            }
+            setTimeout(load15MinuteForecast, 1000);
+            
+            // Update hero data every 30 seconds
+            setInterval(loadHeroData, 30000);
+        });
+        
+        // ============================================================================
+        // CHART.JS INITIALIZATION
+        // ============================================================================
+        // Sets up the main weather forecast chart using Chart.js library
+        function initializeForecastChart() {
+            const ctx = document.getElementById('forecastChart');
+            if (ctx) {
+                // Create global chart instance for later updates
+                window.forecastChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#ffffff' }
+                            },
+                            zoom: {
+                                pan: {
+                                    enabled: true,
+                                    mode: 'x'
+                                },
+                                zoom: {
+                                    wheel: {
+                                        enabled: true
+                                    },
+                                    pinch: {
+                                        enabled: true
+                                    },
+                                    mode: 'x'
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#9ca3af' },
+                                grid: { color: '#374151' }
+                            },
+                            y: {
+                                ticks: { color: '#9ca3af' },
+                                grid: { color: '#374151' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        function initializeForecastControls() {
+            const liveDataBtn = document.getElementById('liveDataBtn');
+            const forecastBtn = document.getElementById('forecastBtn');
+            const liveDataSection = document.getElementById('liveDataSection');
+            const forecastSection = document.getElementById('forecastSection');
+            
+            if (liveDataBtn && forecastBtn) {
+                liveDataBtn.addEventListener('click', function() {
+                    liveDataBtn.classList.add('primary', 'active');
+                    liveDataBtn.classList.remove('secondary');
+                    forecastBtn.classList.add('secondary');
+                    forecastBtn.classList.remove('primary', 'active');
+                    
+                    if (liveDataSection) liveDataSection.style.display = 'block';
+                    if (forecastSection) forecastSection.style.display = 'none';
+                });
+                
+                forecastBtn.addEventListener('click', function() {
+                    forecastBtn.classList.add('primary', 'active');
+                    forecastBtn.classList.remove('secondary');
+                    liveDataBtn.classList.add('secondary');
+                    liveDataBtn.classList.remove('primary', 'active');
+                    
+                    if (liveDataSection) liveDataSection.style.display = 'none';
+                    if (forecastSection) forecastSection.style.display = 'block';
+                    
+                    updateForecastChart();
+                });
+            }
+            
+            const forecastLocation = document.getElementById('forecastLocation');
+            const forecastGrouping = document.getElementById('forecastGrouping');
+            const forecastChartType = document.getElementById('forecastChartType');
+            const parameterCheckboxes = document.querySelectorAll('#forecastSection input[type="checkbox"]');
+            
+            if (forecastLocation) {
+                forecastLocation.addEventListener('change', updateForecastChart);
+            }
+            
+            if (forecastGrouping) {
+                forecastGrouping.addEventListener('change', updateForecastChart);
+            }
+            
+            if (forecastChartType) {
+                forecastChartType.addEventListener('change', function() {
+                    changeForecastChartType(this.value);
+                });
+            }
+            
+            parameterCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updateForecastChart);
+            });
+        }
+        
+        // ============================================================================
+        // CHART UPDATE LOGIC
+        // ============================================================================
+        // Fetches new data from the API and updates the forecast chart
+        function updateForecastChart() {
+            // Get current user selections or use defaults
+            const location = document.getElementById('forecastLocation')?.value || (isAdmin ? 'botocan' : userLocation);
+            const grouping = document.getElementById('forecastGrouping')?.value || 'hourly';
+            const selectedParams = []; // Will store which weather parameters to display
+            
+            const checkboxes = document.querySelectorAll('#forecastSection input[type="checkbox"]:checked');
+            checkboxes.forEach(checkbox => {
+                selectedParams.push({
+                    param: checkbox.value,
+                    color: checkbox.dataset.color
+                });
+            });
+            
+            if (selectedParams.length === 0) {
+                selectedParams.push({param: 't', color: '#ef4444'});
+            }
+            
+            let apiUrl = `/api/weather-forecast?location=${location}&grouping=${grouping}&parameters=${selectedParams.map(p => p.param).join(',')}`;
+            
+            // Add custom date range if selected
+            if (grouping === 'custom') {
+                const startDateTime = document.getElementById('startDateTime')?.value;
+                const endDateTime = document.getElementById('endDateTime')?.value;
+                
+                if (startDateTime && endDateTime) {
+                    apiUrl += `&start_date=${encodeURIComponent(startDateTime)}&end_date=${encodeURIComponent(endDateTime)}`;
+                }
+            }
+            
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('API Error:', data.error);
+                        return;
+                    }
+                    
+                    const datasets = selectedParams.map(param => ({
+                        label: getParameterName(param.param),
+                        data: data[param.param] || [],
+                        borderColor: param.color,
+                        backgroundColor: param.color + '20',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4
+                    }));
+                    
+                    if (window.forecastChart) {
+                        window.forecastChart.data.labels = data.labels || [];
+                        window.forecastChart.data.datasets = datasets;
+                        window.forecastChart.update();
+                        updateChartStatistics(data, selectedParams);
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch Error:', error);
+                });
+        }
+        
+        function updateChartDisplay(labels, datasets) {
+            if (window.forecastChart) {
+                window.forecastChart.data.labels = labels;
+                window.forecastChart.data.datasets = datasets;
+                window.forecastChart.update();
+                
+                console.log('Chart updated with', labels.length, 'labels and', datasets.length, 'datasets');
+                console.log('First few labels:', labels.slice(0, 5));
+                console.log('Last few labels:', labels.slice(-5));
+            }
+        }
+        
+
+        
+        function mapDataToComplete7Days(apiData, completeLabels, selectedParams, grouping) {
+            const mappedData = {};
+            
+            selectedParams.forEach(param => {
+                mappedData[param.param] = new Array(completeLabels.length).fill(0);
+                
+                if (apiData[param.param] && apiData.labels) {
+                    // Create a map of API data for faster lookup
+                    const apiDataMap = {};
+                    apiData.labels.forEach((apiLabel, index) => {
+                        const normalizedLabel = normalizeTimeLabel(apiLabel, grouping);
+                        apiDataMap[normalizedLabel] = apiData[param.param][index];
+                    });
+                    
+                    // Map to complete timeline
+                    completeLabels.forEach((label, index) => {
+                        const normalizedLabel = normalizeTimeLabel(label, grouping);
+                        if (apiDataMap[normalizedLabel] !== undefined) {
+                            mappedData[param.param][index] = apiDataMap[normalizedLabel];
+                        }
+                    });
+                }
+            });
+            
+            return mappedData;
+        }
+        
+        function normalizeTimeLabel(label, grouping) {
+            if (typeof label !== 'string') return '';
+            
+            if (grouping === 'daily') {
+                // Extract date part (YYYY-MM-DD)
+                return label.slice(0, 10);
+            } else if (grouping === 'hourly') {
+                // Extract hour part (YYYY-MM-DDTHH:00 or YYYY-MM-DD HH:00)
+                return label.slice(0, 13).replace('T', ' ') + ':00';
+            } else { // 15m
+                // Extract minute part (YYYY-MM-DDTHH:MM or YYYY-MM-DD HH:MM)
+                return label.slice(0, 16).replace('T', ' ');
+            }
+        }
+        
+        function updateChartWithData(labels, data) {
+            if (!window.forecastChart) return;
+            
+            window.forecastChart.data.labels = labels;
+            window.forecastChart.data.datasets = [];
+            
+            Object.keys(data).forEach(param => {
+                const checkbox = document.querySelector(`input[value="${param}"]`);
+                if (checkbox && checkbox.checked) {
+                    const paramName = getParameterName(param);
+                    // Sample data for demonstration - replace with actual API data
+                    const sampleData = generateSampleDataForParam(param, labels.length);
+                    
+                    window.forecastChart.data.datasets.push({
+                        label: paramName,
+                        data: sampleData,
+                        borderColor: checkbox.dataset.color,
+                        backgroundColor: checkbox.dataset.color + '20',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4
+                    });
+                }
+            });
+            
+            window.forecastChart.update();
+        }
+        
+        function updateChartWithEmptyData(labels, selectedParams) {
+            if (!window.forecastChart) return;
+            
+            window.forecastChart.data.labels = labels;
+            window.forecastChart.data.datasets = [];
+            
+            selectedParams.forEach(param => {
+                const paramName = getParameterName(param.param);
+                // Generate sample data instead of zeros
+                const sampleData = generateSampleDataForParam(param.param, labels.length);
+                
+                window.forecastChart.data.datasets.push({
+                    label: paramName + ' (Sample)',
+                    data: sampleData,
+                    borderColor: param.color,
+                    backgroundColor: param.color + '20',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    borderDash: [5, 5]
+                });
+            });
+            
+            window.forecastChart.update();
+        }
+        
+        function generateRealisticData(param, length) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentDay = now.getDay();
+            
+            // Base values for Philippines weather patterns
+            const baseValues = {
+                't': 28, 'rh': 82, 'ws': 12, 'sr': 450, 'rr': 2.1, 'sp': 1008, 'wd': 180
+            };
+            
+            const base = baseValues[param] || 50;
+            
+            return Array.from({ length }, (_, i) => {
+                const timeIndex = i;
+                let value = base;
+                
+                // Temperature: cooler at night, warmer during day
+                if (param === 't') {
+                    const hourCycle = Math.sin((timeIndex * 2 * Math.PI) / 4 - Math.PI/2) * 4;
+                    const weekTrend = Math.sin((timeIndex / length) * 2 * Math.PI) * 2;
+                    value = base + hourCycle + weekTrend + (Math.random() - 0.5) * 2;
+                }
+                
+                // Humidity: higher at night, lower during day
+                else if (param === 'rh') {
+                    const hourCycle = -Math.sin((timeIndex * 2 * Math.PI) / 4 - Math.PI/2) * 8;
+                    const weekTrend = Math.sin((timeIndex / length) * 2 * Math.PI) * 5;
+                    value = base + hourCycle + weekTrend + (Math.random() - 0.5) * 3;
+                }
+                
+                // Wind Speed: variable with weather patterns
+                else if (param === 'ws') {
+                    const dailyVariation = Math.sin((timeIndex * 2 * Math.PI) / 4) * 3;
+                    const weekTrend = Math.sin((timeIndex / length) * 4 * Math.PI) * 4;
+                    value = base + dailyVariation + weekTrend + (Math.random() - 0.5) * 2;
+                }
+                
+                // Solar Radiation: zero at night, peak at noon
+                else if (param === 'sr') {
+                    const hourInDay = (timeIndex * 6) % 24; // Assuming 6-hour intervals
+                    if (hourInDay < 6 || hourInDay > 18) {
+                        value = 0; // Night time
+                    } else {
+                        const solarCycle = Math.sin(((hourInDay - 6) / 12) * Math.PI) * 800;
+                        const cloudiness = Math.random() * 0.3 + 0.7; // 70-100% clear
+                        value = solarCycle * cloudiness;
+                    }
+                }
+                
+                // Rainfall: sporadic with weather patterns
+                else if (param === 'rr') {
+                    const rainChance = Math.random();
+                    const seasonalPattern = Math.sin((timeIndex / length) * 2 * Math.PI) * 0.3 + 0.7;
+                    if (rainChance < 0.3 * seasonalPattern) {
+                        value = Math.random() * 15; // 0-15mm rain
+                    } else {
+                        value = Math.random() * 0.5; // Light drizzle or no rain
+                    }
+                }
+                
+                // Pressure: gradual changes with weather systems
+                else if (param === 'sp') {
+                    const weatherSystem = Math.sin((timeIndex / length) * 3 * Math.PI) * 8;
+                    const dailyVariation = Math.sin((timeIndex * 2 * Math.PI) / 4) * 2;
+                    value = base + weatherSystem + dailyVariation + (Math.random() - 0.5) * 1;
+                }
+                
+                // Wind Direction: prevailing winds with variations
+                else if (param === 'wd') {
+                    const prevailingWind = 180; // South wind
+                    const variation = Math.sin((timeIndex / length) * 6 * Math.PI) * 60;
+                    const randomShift = (Math.random() - 0.5) * 40;
+                    value = (prevailingWind + variation + randomShift + 360) % 360;
+                }
+                
+                // Ensure realistic bounds
+                if (param === 't') value = Math.max(22, Math.min(38, value));
+                else if (param === 'rh') value = Math.max(40, Math.min(95, value));
+                else if (param === 'ws') value = Math.max(0, Math.min(25, value));
+                else if (param === 'sr') value = Math.max(0, Math.min(1200, value));
+                else if (param === 'rr') value = Math.max(0, value);
+                else if (param === 'sp') value = Math.max(995, Math.min(1025, value));
+                else if (param === 'wd') value = Math.max(0, Math.min(360, value));
+                
+                return Math.round(value * 10) / 10;
+            });
+        }
+        
+        function changeForecastChartType(chartType) {
+            if (!window.forecastChart) return;
+            
+            const currentData = {
+                labels: [...window.forecastChart.data.labels],
+                datasets: window.forecastChart.data.datasets.map(dataset => ({
+                    ...dataset,
+                    data: [...dataset.data]
+                }))
+            };
+            
+            window.forecastChart.destroy();
+            
+            const ctx = document.getElementById('forecastChart');
+            window.forecastChart = new Chart(ctx, {
+                type: chartType === 'area' ? 'line' : chartType,
+                data: {
+                    labels: currentData.labels,
+                    datasets: currentData.datasets.map(dataset => ({
+                        ...dataset,
+                        fill: chartType === 'area',
+                        backgroundColor: chartType === 'bar' ? dataset.borderColor : dataset.backgroundColor
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#ffffff' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#9ca3af' },
+                            grid: { color: '#374151' }
+                        },
+                        y: {
+                            ticks: { color: '#9ca3af' },
+                            grid: { color: '#374151' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function getParameterName(param) {
+            const names = {
+                't': 'Temperature (°C)',
+                'rh': 'Humidity (%)',
+                'ws': 'Wind Speed (m/s)',
+                'sr': 'Solar Radiation (W/m²)',
+                'rr': 'Rainfall (mm)',
+                'sp': 'Pressure (hPa)',
+                'wd': 'Wind Direction (°)'
+            };
+            return names[param] || param;
+        }
+
+        function loadDashboardData() {
+            const locationSelect = document.getElementById('locationSelect');
+            const location = locationSelect ? locationSelect.value : 'kalayaan01';
+            
+            const locationDisplay = document.getElementById('currentLocationDisplay');
+            if (locationDisplay && locationSelect) {
+                const selectedOption = locationSelect.options[locationSelect.selectedIndex];
+                locationDisplay.textContent = selectedOption.text;
+            }
+
+            fetch(`/api/dashboard-summary?location=${location}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('API unavailable');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    
+                    const totalPower = document.getElementById('totalPower');
+                    const waterLevel = document.getElementById('waterLevel');
+                    const temperature = document.getElementById('temperature');
+                    
+                    if (totalPower) totalPower.textContent = data.total_power || '--';
+                    if (waterLevel) waterLevel.textContent = data.water_level || '--';
+                    if (temperature) temperature.textContent = data.temperature || '--';
+                })
+                .catch(error => {
+                    console.error('Failed to load dashboard data:', error);
+                });
+        }
+        
+        function loadHeroData() {
+            const location = document.getElementById('forecast15Location')?.value || (isAdmin ? 'botocan' : userLocation);
+            
+            console.log('Loading hero data for location:', location);
+            
+            fetch(`/api/weather-data?location=${location}&limit=1`)
+                .then(response => {
+                    console.log('Hero weather API response status:', response.status);
+                    if (!response.ok) throw new Error('API unavailable');
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Hero weather data received:', data);
+                    if (data.error || !data.data || data.data.length === 0) {
+                        console.log('No weather data available');
+                        return;
+                    }
+                    
+                    const latest = data.data[0];
+                    updateHeroWeatherData(latest);
+                })
+                .catch(error => {
+                    console.error('Failed to load hero weather data:', error);
+                });
+            
+            // Load system statistics
+            fetch('/api/system-stats')
+                .then(response => {
+                    if (!response.ok) throw new Error('API unavailable');
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data.error) {
+                        updateHeroStats(data);
+                    } else {
+                        throw new Error(data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to load system stats:', error);
+                });
+            
+            // Update last update time
+            document.getElementById('lastUpdate').textContent = 'Just now';
+        }
+        
+        function updateHeroWeatherData(weatherData) {
+            // Update current conditions in hero section
+            const currentTemp = document.getElementById('currentTemp');
+            const currentWind = document.getElementById('currentWind');
+            const currentHumidity = document.getElementById('currentHumidity');
+            const currentSolar = document.getElementById('currentSolar');
+            const currentRain = document.getElementById('currentRain');
+            const currentPressure = document.getElementById('currentPressure');
+            const currentWindDir = document.getElementById('currentWindDir');
+            
+            // Update weather summary values
+            if (currentTemp) currentTemp.textContent = weatherData.temperature ? weatherData.temperature.toFixed(1) : '--';
+            if (currentHumidity) currentHumidity.textContent = weatherData.humidity ? Math.round(weatherData.humidity) : '--';
+            if (currentWind) currentWind.textContent = weatherData.wind_speed ? weatherData.wind_speed.toFixed(1) : '--';
+            if (currentSolar) currentSolar.textContent = weatherData.solar_radiation ? Math.round(weatherData.solar_radiation) : '--';
+            if (currentRain) currentRain.textContent = weatherData.rainfall ? weatherData.rainfall.toFixed(1) : '--';
+            if (currentPressure) currentPressure.textContent = weatherData.pressure ? Math.round(weatherData.pressure) : '--';
+            if (currentWindDir) currentWindDir.textContent = weatherData.wind_direction ? Math.round(weatherData.wind_direction) + '°' : '--';
+            
+            // Update hero stats
+            const heroTempStat = document.getElementById('heroTempStat');
+            const heroHumidityStat = document.getElementById('heroHumidityStat');
+            const heroWindStat = document.getElementById('heroWindStat');
+            const heroSolarStat = document.getElementById('heroSolarStat');
+            const heroRainStat = document.getElementById('heroRainStat');
+            const heroPressureStat = document.getElementById('heroPressureStat');
+            
+            if (heroTempStat) heroTempStat.textContent = weatherData.temperature ? weatherData.temperature.toFixed(1) : '--';
+            if (heroHumidityStat) heroHumidityStat.textContent = weatherData.humidity ? Math.round(weatherData.humidity) : '--';
+            if (heroWindStat) heroWindStat.textContent = weatherData.wind_speed ? weatherData.wind_speed.toFixed(1) : '--';
+            if (heroSolarStat) heroSolarStat.textContent = weatherData.solar_radiation ? Math.round(weatherData.solar_radiation) : '--';
+            if (heroRainStat) heroRainStat.textContent = weatherData.rainfall ? weatherData.rainfall.toFixed(1) : '--';
+            if (heroPressureStat) heroPressureStat.textContent = weatherData.pressure ? Math.round(weatherData.pressure) : '--';
+        }
+        
+        function updateHeroStats(statsData) {
+            // Update hero statistics
+            const heroAccuracy = document.getElementById('heroAccuracy');
+            const heroStations = document.getElementById('heroStations');
+            const heroAlerts = document.getElementById('heroAlerts');
+            
+            if (heroAccuracy) {
+                heroAccuracy.textContent = statsData.forecast_accuracy ? statsData.forecast_accuracy + '%' : '--';
+            }
+            if (heroStations) {
+                heroStations.textContent = statsData.active_stations || '--';
+            }
+            if (heroAlerts) {
+                heroAlerts.textContent = statsData.active_alerts !== undefined ? statsData.active_alerts : '--';
+                
+                // Update alert trend based on count
+                const alertTrend = heroAlerts.parentElement.querySelector('.stat-trend');
+                if (alertTrend) {
+                    if (statsData.active_alerts === 0) {
+                        alertTrend.textContent = 'No warnings';
+                        alertTrend.className = 'stat-trend positive';
+                    } else {
+                        alertTrend.textContent = `${statsData.active_alerts} active`;
+                        alertTrend.className = 'stat-trend neutral';
+                    }
+                }
+            }
+        }
+
+        let lastDataTimestamp = null;
+        
+        // ============================================================================
+        // USER CONTEXT VARIABLES
+        // ============================================================================
+        // These variables are set server-side using Jinja2 templating and provide
+        // client-side JavaScript with information about the current user's permissions
+        
+        // KALAYAAN USER LOCATION LOGIC - COMMENTED OUT FOR BOTOCAN-ONLY FOCUS
+        // const userLocation = '{% if "kalayaan01" in session.locations or "kalayaan02" in session.locations or "kalayaan03" in session.locations or "kalayaan04" in session.locations or session.location == "kalayaan" or session.user_id == "kalayaan" %}kalayaan{% else %}botocan{% endif %}';
+        
+        // BOTOCAN-ONLY FOCUS: Always use Botocan as the user location
+        const userLocation = 'botocan';
+        
+        // Check if current user has admin privileges
+        const isAdmin = '{{ session.role }}' === 'admin';
+        
+        // BOTOCAN-ONLY FOCUS: Always use Botocan plant name
+        // const userPlantName = '{% if "kalayaan01" in session.locations or "kalayaan02" in session.locations or "kalayaan03" in session.locations or "kalayaan04" in session.locations or session.location == "kalayaan" or session.user_id == "kalayaan" %}Kalayaan (KPSPP){% else %}Botocan (BHEPP){% endif %}';
+        const userPlantName = 'Botocan (BHEPP)';
+        let forecastGauges = {};
+        
+        // Weather forecast gauge configurations
+        const forecastGaugeConfigs = {
+            forecast15Temp: { min: -10, max: 50, color: '#ef4444', unit: '°C', type: 'thermometer' },
+            forecast15Humidity: { min: 0, max: 100, color: '#22c55e', unit: '%' },
+            forecast15Wind: { min: 0, max: 30, color: '#3b82f6', unit: 'm/s' },
+            forecast15Solar: { min: 0, max: 1200, color: '#f59e0b', unit: 'W/m²' },
+            forecast15Rain: { min: 0, max: 50, color: '#06b6d4', unit: 'mm', type: 'linear' },
+            forecast15Pressure: { min: 980, max: 1040, color: '#8b5cf6', unit: 'hPa' },
+            forecast15WindDir: { min: 0, max: 360, color: '#f97316', unit: '°', type: 'compass' }
+        };
+        
+        function initializeForecastGauges() {
+            Object.keys(forecastGaugeConfigs).forEach(gaugeId => {
+                const config = forecastGaugeConfigs[gaugeId];
+                const canvas = document.getElementById(gaugeId + 'Gauge');
+                if (canvas) {
+                    createForecastGauge(canvas, config);
+                    forecastGauges[gaugeId] = canvas;
+                }
+            });
+        }
+        
+        function createForecastGauge(canvas, config) {
+            const ctx = canvas.getContext('2d');
+            canvas.gaugeConfig = config;
+            canvas.currentValue = 0;
+            
+            canvas.drawGauge = function(value) {
+                canvas.currentValue = value;
+                if (config.type === 'compass') {
+                    drawCompassGauge(ctx, config, value, canvas.width);
+                } else if (config.type === 'thermometer') {
+                    drawThermometerGauge(ctx, config, value, canvas.width, canvas.height);
+                } else if (config.type === 'linear') {
+                    drawLinearGauge(ctx, config, value, canvas.width, canvas.height);
+                } else {
+                    drawCircularGauge(ctx, config, value, canvas.width);
+                }
+            };
+            
+            canvas.drawGauge(0);
+        }
+        
+        function drawCircularGauge(ctx, config, value, size) {
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const radius = (size / 2) - 30;
+            
+            ctx.clearRect(0, 0, size, size);
+            
+            const startAngle = Math.PI * 0.625;
+            const endAngle = Math.PI * 2.375;
+            const totalAngle = endAngle - startAngle;
+            const totalRange = config.max - config.min;
+            
+            // Background track
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+            ctx.strokeStyle = '#374151';
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            
+            // Color zones
+            const zones = [
+                { start: 0, end: 0.65, color: '#22c55e' },
+                { start: 0.65, end: 0.85, color: '#f59e0b' },
+                { start: 0.85, end: 1.0, color: '#ef4444' }
+            ];
+            
+            zones.forEach(zone => {
+                const zoneStartAngle = startAngle + (zone.start * totalAngle);
+                const zoneEndAngle = startAngle + (zone.end * totalAngle);
+                
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, zoneStartAngle, zoneEndAngle);
+                ctx.strokeStyle = zone.color;
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            });
+            
+            // Scale marks and numbers
+            const numMarks = 4;
+            
+            ctx.strokeStyle = '#9ca3af';
+            ctx.fillStyle = '#d1d5db';
+            ctx.font = 'bold 11px Inter, Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            for (let i = 0; i <= numMarks; i++) {
+                const angle = startAngle + (i / numMarks) * totalAngle;
+                const markValue = config.min + (i / numMarks) * (config.max - config.min);
+                
+                // Tick marks
+                const tickStart = radius + 3;
+                const tickEnd = radius + 12;
+                
+                const x1 = centerX + Math.cos(angle) * tickStart;
+                const y1 = centerY + Math.sin(angle) * tickStart;
+                const x2 = centerX + Math.cos(angle) * tickEnd;
+                const y2 = centerY + Math.sin(angle) * tickEnd;
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+                
+                // Numbers
+                const labelRadius = radius + 20;
+                const labelX = centerX + Math.cos(angle) * labelRadius;
+                const labelY = centerY + Math.sin(angle) * labelRadius;
+                
+                let displayValue;
+                if ((config.max - config.min) > 1000) {
+                    displayValue = Math.round(markValue / 100) * 100;
+                } else if (markValue >= 100) {
+                    displayValue = Math.round(markValue);
+                } else {
+                    displayValue = Math.round(markValue * 10) / 10;
+                }
+                
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowBlur = 2;
+                ctx.fillText(displayValue.toString(), labelX, labelY);
+                ctx.shadowBlur = 0;
+            }
+            
+            // Needle
+            const percentage = Math.max(0, Math.min(1, (value - config.min) / (config.max - config.min)));
+            const needleAngle = startAngle + (percentage * totalAngle);
+            drawNeedle(ctx, centerX, centerY, radius - 15, needleAngle);
+            
+            // Value display
+            const displayValue = Math.floor(value * 10) / 10;
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(displayValue.toString(), centerX, centerY + radius * 0.4);
+        }
+        
+        function drawCompassGauge(ctx, config, value, size) {
+            ctx.clearRect(0, 0, size, size);
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const radius = (size / 2) - 25;
+            
+            // Compass circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#374151';
+            ctx.fill();
+            ctx.strokeStyle = '#6b7280';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            // Cardinal directions
+            const directions = ['N', 'E', 'S', 'W'];
+            const angles = [0, 90, 180, 270];
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            directions.forEach((dir, i) => {
+                const angle = (angles[i] - 90) * Math.PI / 180;
+                const x = centerX + Math.cos(angle) * (radius - 12);
+                const y = centerY + Math.sin(angle) * (radius - 12);
+                ctx.fillText(dir, x, y);
+            });
+            
+            // Wind direction needle
+            const windAngle = (value - 90) * Math.PI / 180;
+            const needleLength = radius - 18;
+            
+            ctx.strokeStyle = '#ef4444';
+            ctx.fillStyle = '#ef4444';
+            ctx.lineWidth = 5;
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(
+                centerX + Math.cos(windAngle) * needleLength,
+                centerY + Math.sin(windAngle) * needleLength
+            );
+            ctx.stroke();
+            
+            // Center dot
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            
+            // Value display
+            ctx.font = 'bold 20px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText(Math.floor(value) + '°', centerX, centerY + 40);
+        }
+        
+        function drawNeedle(ctx, centerX, centerY, radius, angle) {
+            const needleLength = radius - 8;
+            const needleWidth = 4;
+            const tipX = centerX + Math.cos(angle) * needleLength;
+            const tipY = centerY + Math.sin(angle) * needleLength;
+            
+            const baseAngle1 = angle + Math.PI / 2;
+            const baseAngle2 = angle - Math.PI / 2;
+            const baseRadius = needleWidth;
+            
+            const base1X = centerX + Math.cos(baseAngle1) * baseRadius;
+            const base1Y = centerY + Math.sin(baseAngle1) * baseRadius;
+            const base2X = centerX + Math.cos(baseAngle2) * baseRadius;
+            const base2Y = centerY + Math.sin(baseAngle2) * baseRadius;
+            
+            ctx.beginPath();
+            ctx.moveTo(base1X, base1Y);
+            ctx.lineTo(tipX, tipY);
+            ctx.lineTo(base2X, base2Y);
+            ctx.closePath();
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.strokeStyle = '#374151';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            // Center hub
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.strokeStyle = '#9ca3af';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        
+
+        
+
+        
+
+
+        // ============================================================================
+        // REAL-TIME DATA LOADING
+        // ============================================================================
+        // Fetches the latest weather data for gauge displays and hero statistics
+        function load15MinuteForecast() {
+            // Determine which location's data to fetch
+            const locationSelect = document.getElementById('forecast15Location');
+            const location = locationSelect ? locationSelect.value : (isAdmin ? 'botocan' : userLocation);
+            
+            console.log('Loading 15-minute forecast for location:', location);
+            
+            fetch(`/api/weather-data?location=${location}&limit=1`)
+                .then(response => {
+                    console.log('Weather API response status:', response.status);
+                    if (!response.ok) throw new Error('API unavailable');
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Weather data received:', data);
+                    if (data.error || !data.data || data.data.length === 0) {
+                        console.log('No weather data available');
+                        return;
+                    }
+                    
+                    const latestData = data.data[0];
+                    updateForecastGauges(latestData);
+                    updateHeroWeatherData(latestData);
+                    
+                    const nextUpdate = new Date(Date.now() + 15 * 60 * 1000);
+                    document.getElementById('forecastTime').textContent = `Next: ${nextUpdate.toLocaleTimeString()}`;
+                })
+                .catch(error => {
+                    console.error('Failed to load weather data:', error);
+                });
+        }
+
+        function drawThermometerGauge(ctx, config, value, width, height) {
+            ctx.clearRect(0, 0, width, height);
+            const margin = 30;
+            const bulbRadius = 25;
+            const tubeWidth = 20;
+            const tubeHeight = height - margin * 2 - bulbRadius;
+            const centerX = width / 2;
+            const tubeY = margin;
+            const bulbY = tubeY + tubeHeight;
+            
+            const percentage = Math.max(0, Math.min(1, (value - config.min) / (config.max - config.min)));
+            const fillHeight = tubeHeight * percentage;
+            
+            // Thermometer tube
+            ctx.beginPath();
+            ctx.roundRect(centerX - tubeWidth/2, tubeY, tubeWidth, tubeHeight, tubeWidth/2);
+            ctx.fillStyle = '#374151';
+            ctx.fill();
+            ctx.strokeStyle = '#6b7280';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Bulb
+            ctx.beginPath();
+            ctx.arc(centerX, bulbY + bulbRadius/2, bulbRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#374151';
+            ctx.fill();
+            ctx.stroke();
+            
+            // Mercury fill
+            if (fillHeight > 0) {
+                const gradient = ctx.createLinearGradient(0, bulbY, 0, bulbY - fillHeight);
+                if (value < 10) {
+                    gradient.addColorStop(0, '#3b82f6');
+                    gradient.addColorStop(1, '#60a5fa');
+                } else if (value < 25) {
+                    gradient.addColorStop(0, '#22c55e');
+                    gradient.addColorStop(1, '#4ade80');
+                } else if (value < 35) {
+                    gradient.addColorStop(0, '#f59e0b');
+                    gradient.addColorStop(1, '#fbbf24');
+                } else {
+                    gradient.addColorStop(0, '#ef4444');
+                    gradient.addColorStop(1, '#f87171');
+                }
+                
+                ctx.beginPath();
+                ctx.arc(centerX, bulbY + bulbRadius/2, bulbRadius - 3, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.roundRect(centerX - tubeWidth/2 + 3, bulbY - fillHeight + 3, tubeWidth - 6, fillHeight, (tubeWidth - 6)/2);
+                ctx.fill();
+            }
+            
+            // Value display
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText(Math.floor(value * 10) / 10, width / 2, height - 15);
+        }
+        
+        function drawLinearGauge(ctx, config, value, width, height) {
+            ctx.clearRect(0, 0, width, height);
+            const margin = 30;
+            const gaugeWidth = 60;
+            const gaugeHeight = height - (margin * 2);
+            const gaugeX = (width - gaugeWidth) / 2;
+            const gaugeY = margin;
+            
+            const percentage = Math.max(0, Math.min(1, (value - config.min) / (config.max - config.min)));
+            const fillHeight = gaugeHeight * percentage;
+            
+            // Container
+            ctx.beginPath();
+            ctx.roundRect(gaugeX, gaugeY, gaugeWidth, gaugeHeight, 8);
+            ctx.fillStyle = '#374151';
+            ctx.fill();
+            ctx.strokeStyle = '#6b7280';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Fill
+            if (fillHeight > 0) {
+                const gradient = ctx.createLinearGradient(0, gaugeY + gaugeHeight, 0, gaugeY + gaugeHeight - fillHeight);
+                gradient.addColorStop(0, config.color);
+                gradient.addColorStop(1, config.color + '80');
+                
+                ctx.beginPath();
+                ctx.roundRect(gaugeX + 6, gaugeY + gaugeHeight - fillHeight + 2, gaugeWidth - 12, fillHeight - 4, 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
+            
+            // Value display
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText(Math.floor(value * 10) / 10, width / 2, height - 15);
+        }
+        
+        function drawNeedle(ctx, centerX, centerY, radius, angle) {
+            const needleLength = radius - 8;
+            const needleWidth = 4;
+            
+            const tipX = centerX + Math.cos(angle) * needleLength;
+            const tipY = centerY + Math.sin(angle) * needleLength;
+            
+            const baseAngle1 = angle + Math.PI / 2;
+            const baseAngle2 = angle - Math.PI / 2;
+            const baseRadius = needleWidth;
+            
+            const base1X = centerX + Math.cos(baseAngle1) * baseRadius;
+            const base1Y = centerY + Math.sin(baseAngle1) * baseRadius;
+            const base2X = centerX + Math.cos(baseAngle2) * baseRadius;
+            const base2Y = centerY + Math.sin(baseAngle2) * baseRadius;
+            
+            // Needle shadow
+            ctx.save();
+            ctx.translate(1, 1);
+            ctx.beginPath();
+            ctx.moveTo(base1X, base1Y);
+            ctx.lineTo(tipX, tipY);
+            ctx.lineTo(base2X, base2Y);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fill();
+            ctx.restore();
+            
+            // Main needle
+            ctx.beginPath();
+            ctx.moveTo(base1X, base1Y);
+            ctx.lineTo(tipX, tipY);
+            ctx.lineTo(base2X, base2Y);
+            ctx.closePath();
+            
+            const gradient = ctx.createLinearGradient(centerX, centerY, tipX, tipY);
+            gradient.addColorStop(0, '#ffffff');
+            gradient.addColorStop(1, '#f3f4f6');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            ctx.strokeStyle = '#374151';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            // Center hub
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+            const hubGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 8);
+            hubGradient.addColorStop(0, '#ffffff');
+            hubGradient.addColorStop(1, '#e5e7eb');
+            ctx.fillStyle = hubGradient;
+            ctx.fill();
+            ctx.strokeStyle = '#9ca3af';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 3, 0, 2 * Math.PI);
+            ctx.fillStyle = '#6b7280';
+            ctx.fill();
+        }
+        
+        function updateForecastGauges(data) {
+            if (!data) return;
+            
+            const temp = data.temperature ? Math.floor(parseFloat(data.temperature) * 10) / 10 : 0;
+            const humidity = data.humidity ? Math.floor(parseFloat(data.humidity)) : 0;
+            const windSpeed = data.wind_speed ? Math.floor(parseFloat(data.wind_speed) * 10) / 10 : 0;
+            const solar = data.solar_radiation ? Math.floor(parseFloat(data.solar_radiation)) : 0;
+            const rain = data.rainfall ? Math.floor(parseFloat(data.rainfall) * 10) / 10 : 0;
+            const pressure = data.pressure ? Math.floor(parseFloat(data.pressure)) : 0;
+            const windDir = data.wind_direction ? Math.floor(parseFloat(data.wind_direction)) : 0;
+            
+            // Update gauge values
+            document.getElementById('forecast15Temp').textContent = temp || '--';
+            document.getElementById('forecast15Humidity').textContent = humidity || '--';
+            document.getElementById('forecast15Wind').textContent = windSpeed || '--';
+            document.getElementById('forecast15Solar').textContent = solar || '--';
+            document.getElementById('forecast15Rain').textContent = rain || '--';
+            document.getElementById('forecast15Pressure').textContent = pressure || '--';
+            document.getElementById('forecast15WindDirection').textContent = windDir || '--';
+            
+            // Update gauge visuals
+            if (forecastGauges.forecast15Temp) forecastGauges.forecast15Temp.drawGauge(temp);
+            if (forecastGauges.forecast15Humidity) forecastGauges.forecast15Humidity.drawGauge(humidity);
+            if (forecastGauges.forecast15Wind) forecastGauges.forecast15Wind.drawGauge(windSpeed);
+            if (forecastGauges.forecast15Solar) forecastGauges.forecast15Solar.drawGauge(solar);
+            if (forecastGauges.forecast15Rain) forecastGauges.forecast15Rain.drawGauge(rain);
+            if (forecastGauges.forecast15Pressure) forecastGauges.forecast15Pressure.drawGauge(pressure);
+            if (forecastGauges.forecast15WindDir) forecastGauges.forecast15WindDir.drawGauge(windDir);
+        }
+
+        function updateTrend(elementId, current, previous) {
+            const element = document.getElementById(elementId);
+            if (!element || current === undefined || previous === undefined) return;
+            
+            const diff = current - previous;
+            if (Math.abs(diff) < 0.1) {
+                element.textContent = 'Stable';
+                element.style.color = '#9ca3af';
+            } else if (diff > 0) {
+                element.textContent = `↗ +${diff.toFixed(1)}`;
+                element.style.color = '#22c55e';
+            } else {
+                element.textContent = `↘ ${diff.toFixed(1)}`;
+                element.style.color = '#ef4444';
+            }
+        }
+
+        // Removed mock data generation function
+
+        // Check for new data every 30 seconds
+        setInterval(load15MinuteForecast, 30000);
+        
+        // Chart Controls functionality
+        document.getElementById('resetZoomBtn')?.addEventListener('click', function() {
+            if (window.forecastChart) {
+                window.forecastChart.resetZoom();
+            }
+        });
+        
+        document.getElementById('zoomInBtn')?.addEventListener('click', function() {
+            if (window.forecastChart) {
+                window.forecastChart.zoom(1.1);
+            }
+        });
+        
+        document.getElementById('zoomOutBtn')?.addEventListener('click', function() {
+            if (window.forecastChart) {
+                window.forecastChart.zoom(0.9);
+            }
+        });
+        
+        document.getElementById('panLeftBtn')?.addEventListener('click', function() {
+            if (window.forecastChart) {
+                window.forecastChart.pan({x: -100});
+            }
+        });
+        
+        document.getElementById('panRightBtn')?.addEventListener('click', function() {
+            if (window.forecastChart) {
+                window.forecastChart.pan({x: 100});
+            }
+        });
+        
+        document.getElementById('fullscreenBtn')?.addEventListener('click', function() {
+            const forecastSection = document.getElementById('forecastSection');
+            if (forecastSection) {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else {
+                    if (forecastSection.requestFullscreen) {
+                        forecastSection.requestFullscreen();
+                    } else if (forecastSection.webkitRequestFullscreen) {
+                        forecastSection.webkitRequestFullscreen();
+                    } else if (forecastSection.msRequestFullscreen) {
+                        forecastSection.msRequestFullscreen();
+                    }
+                }
+            }
+        });
+        
+        function updateChartStatistics(data, selectedParams) {
+            let avgTemp = 0, maxWind = 0, totalRain = 0, avgSolar = 0, avgHumidity = 0, avgPressure = 0, avgWindDir = 0, confidence = 85;
+            
+            selectedParams.forEach(param => {
+                const values = data[param.param] || [];
+                if (values.length > 0) {
+                    switch(param.param) {
+                        case 't': avgTemp = values.reduce((a, b) => a + b, 0) / values.length; break;
+                        case 'ws': maxWind = Math.max(...values); break;
+                        case 'rr': totalRain = values.reduce((a, b) => a + b, 0); break;
+                        case 'sr': avgSolar = values.reduce((a, b) => a + b, 0) / values.length; break;
+                        case 'rh': avgHumidity = values.reduce((a, b) => a + b, 0) / values.length; break;
+                        case 'sp': avgPressure = values.reduce((a, b) => a + b, 0) / values.length; break;
+                        case 'wd': avgWindDir = values.reduce((a, b) => a + b, 0) / values.length; break;
+                    }
+                }
+            });
+            
+            // Update chart stats
+            document.getElementById('avgTemp').textContent = avgTemp > 0 ? avgTemp.toFixed(1) + '°C' : '--°C';
+            document.getElementById('avgHumidity').textContent = avgHumidity > 0 ? Math.round(avgHumidity) + '%' : '--%';
+            document.getElementById('maxWind').textContent = maxWind > 0 ? maxWind.toFixed(1) + ' m/s' : '-- m/s';
+            document.getElementById('avgSolar').textContent = avgSolar > 0 ? Math.round(avgSolar) + ' W/m²' : '-- W/m²';
+            document.getElementById('totalRain').textContent = totalRain > 0 ? totalRain.toFixed(1) + ' mm' : '-- mm';
+            document.getElementById('avgPressure').textContent = avgPressure > 0 ? Math.round(avgPressure) + ' hPa' : '-- hPa';
+            document.getElementById('avgWindDir').textContent = avgWindDir > 0 ? Math.round(avgWindDir) + '°' : '--°';
+            
+            const confidenceEl = document.querySelector('.confidence-indicator div div');
+            const confidenceText = document.querySelector('.confidence-indicator span');
+            if (confidenceEl) confidenceEl.style.width = confidence.toFixed(0) + '%';
+            if (confidenceText) confidenceText.textContent = confidence.toFixed(0) + '%';
+        }
+        
+        // Event listeners moved to initialization
+        
+        // Helper function to process weather data for chart display
+        function processWeatherDataForChart(weatherData, selectedParams, grouping) {
+            const result = { labels: [] };
+            
+            // Initialize parameter arrays
+            selectedParams.forEach(param => {
+                result[param.param] = [];
+            });
+            
+            // Process each data point
+            weatherData.forEach((dataPoint, index) => {
+                // Create label based on grouping
+                const timestamp = new Date(dataPoint.timestamp || Date.now() - (weatherData.length - index) * 60000);
+                if (grouping === 'daily') {
+                    result.labels.push(timestamp.toISOString());
+                } else if (grouping === 'hourly') {
+                    result.labels.push(timestamp.toISOString());
+                } else {
+                    result.labels.push(timestamp.toISOString());
+                }
+                
+                // Map data to chart parameters
+                selectedParams.forEach(param => {
+                    let value = 0;
+                    switch(param.param) {
+                        case 't': value = dataPoint.temperature || 0; break;
+                        case 'rh': value = dataPoint.humidity || 0; break;
+                        case 'ws': value = dataPoint.wind_speed || 0; break;
+                        case 'sr': value = dataPoint.solar_radiation || 0; break;
+                        case 'rr': value = dataPoint.rainfall || 0; break;
+                        case 'sp': value = dataPoint.pressure || 0; break;
+                        case 'wd': value = dataPoint.wind_direction || 0; break;
+                    }
+                    result[param.param].push(value);
+                });
+            });
+            
+            return result;
+        }
+        
+        function changeForecastChartType() {
+            const chartType = document.getElementById('forecastChartType').value;
+            if (forecastChart) {
+                const currentData = {
+                    labels: [...forecastChart.data.labels],
+                    datasets: forecastChart.data.datasets.map(dataset => ({ ...dataset }))
+                };
+                
+                forecastChart.destroy();
+                
+                const ctx = document.getElementById('forecastChart');
+                forecastChart = new Chart(ctx, {
+                    type: chartType === 'area' ? 'line' : chartType,
+                    data: {
+                        labels: currentData.labels,
+                        datasets: currentData.datasets.map(dataset => ({
+                            ...dataset,
+                            fill: chartType === 'area',
+                            backgroundColor: chartType === 'bar' ? dataset.borderColor : dataset.backgroundColor
+                        }))
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#ffffff' }
+                            },
+                            zoom: {
+                                pan: { enabled: true, mode: 'x' },
+                                zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                            }
+                        },
+                        scales: {
+                            x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+                            y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }
+                        }
+                    }
+                });
+            }
+        }
+        
+        function initializeDateRangePicker() {
+            const now = new Date();
+            const currentDate = now.toISOString().slice(0, 16);
+            const maxDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 16);
+            
+            const startInput = document.getElementById('startDateTime');
+            const endInput = document.getElementById('endDateTime');
+            
+            if (startInput && endInput) {
+                startInput.value = currentDate;
+                startInput.min = currentDate;
+                startInput.max = maxDate;
+                
+                endInput.value = new Date(now.getTime() + (24 * 60 * 60 * 1000)).toISOString().slice(0, 16);
+                endInput.min = currentDate;
+                endInput.max = maxDate;
+                
+                startInput.addEventListener('change', validateDateRange);
+                endInput.addEventListener('change', validateDateRange);
+            }
+        }
+        
+        function handleGroupingChange(value) {
+            const customDateRange = document.getElementById('customDateRange');
+            if (customDateRange) {
+                if (value === 'custom') {
+                    customDateRange.style.display = 'block';
+                } else {
+                    customDateRange.style.display = 'none';
+                }
+            }
+        }
+        
+        function validateDateRange() {
+            const startInput = document.getElementById('startDateTime');
+            const endInput = document.getElementById('endDateTime');
+            
+            if (!startInput || !endInput) return;
+            
+            const startDate = new Date(startInput.value);
+            const endDate = new Date(endInput.value);
+            const now = new Date();
+            
+            // Ensure start date is not in the past
+            if (startDate < now) {
+                startInput.value = now.toISOString().slice(0, 16);
+                startDate.setTime(now.getTime());
+            }
+            
+            // Ensure end date is after start date
+            if (endDate <= startDate) {
+                endInput.value = new Date(startDate.getTime() + (60 * 60 * 1000)).toISOString().slice(0, 16);
+            }
+            
+            // Ensure date range doesn't exceed 7 days
+            const maxEndDate = new Date(startDate.getTime() + (7 * 24 * 60 * 60 * 1000));
+            if (endDate > maxEndDate) {
+                endInput.value = maxEndDate.toISOString().slice(0, 16);
+            }
+            
+            // Update min/max attributes
+            endInput.min = startInput.value;
+            endInput.max = maxEndDate.toISOString().slice(0, 16);
+        }
+        
+        function filterDataByDateRange(data, startDateTime, endDateTime) {
+            const startDate = new Date(startDateTime);
+            const endDate = new Date(endDateTime);
+            const filteredData = { labels: [] };
+            
+            // Initialize parameter arrays
+            Object.keys(data).forEach(key => {
+                if (key !== 'labels') {
+                    filteredData[key] = [];
+                }
+            });
+            
+            // Filter data points within date range
+            data.labels.forEach((label, index) => {
+                const labelDate = new Date(label);
+                if (labelDate >= startDate && labelDate <= endDate) {
+                    filteredData.labels.push(label);
+                    Object.keys(data).forEach(key => {
+                        if (key !== 'labels' && data[key][index] !== undefined) {
+                            filteredData[key].push(data[key][index]);
+                        }
+                    });
+                }
+            });
+            
+            return filteredData;
+        }
+        
+
+        // Moved to main event listener section
+            // Professional dashboard interactions
+            document.getElementById('alertsBtn')?.addEventListener('click', function() {
+                document.getElementById('alertsPanel').style.display = 'block';
+            });
+            
+            document.getElementById('closeAlerts')?.addEventListener('click', function() {
+                document.getElementById('alertsPanel').style.display = 'none';
+            });
+            
+            // Update forecast accuracy metrics
+            function updateAccuracyMetrics() {
+                document.getElementById('accuracy24h').textContent = (94.2 + Math.random() * 2 - 1).toFixed(1) + '%';
+                document.getElementById('accuracy7d').textContent = (87.8 + Math.random() * 2 - 1).toFixed(1) + '%';
+            }
+            
+            setInterval(updateAccuracyMetrics, 30000);
+            
+            // Quick Actions Functionality
+            document.getElementById('liveDataBtn')?.addEventListener('click', function() {
+                // Update button states
+                document.querySelectorAll('.action-btn').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Show live data, hide forecast
+                document.getElementById('liveDataSection').style.display = 'block';
+                document.getElementById('forecastSection').style.display = 'none';
+                
+                // Scroll to live data section
+                document.getElementById('liveDataSection').scrollIntoView({ behavior: 'smooth' });
+                
+                // Refresh live data
+                load15MinuteForecast();
+            });
+            
+            document.getElementById('forecastBtn')?.addEventListener('click', function() {
+                // Update button states
+                document.querySelectorAll('.action-btn').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Show forecast, hide live data
+                document.getElementById('liveDataSection').style.display = 'none';
+                document.getElementById('forecastSection').style.display = 'block';
+                
+                // Scroll to forecast section
+                document.getElementById('forecastSection').scrollIntoView({ behavior: 'smooth' });
+                
+                // Update forecast chart
+                if (typeof updateForecastChart === 'function') {
+                    updateForecastChart();
+                }
+            });
+            
+            document.getElementById('alertsBtn')?.addEventListener('click', function() {
+                // Create alerts modal
+                const alertsModal = document.createElement('div');
+                alertsModal.className = 'alerts-modal';
+                alertsModal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-exclamation-triangle"></i> Weather Alerts</h3>
+                            <button class="close-modal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert-item high">
+                                <div class="alert-icon"><i class="fas fa-wind"></i></div>
+                                <div class="alert-content">
+                                    <div class="alert-title">High Wind Warning</div>
+                                    <div class="alert-desc">Wind speeds may exceed 15 m/s in the next 6 hours</div>
+                                    <div class="alert-time">Valid: Next 6 hours</div>
+                                </div>
+                            </div>
+                            <div class="alert-item medium">
+                                <div class="alert-icon"><i class="fas fa-cloud-rain"></i></div>
+                                <div class="alert-content">
+                                    <div class="alert-title">Precipitation Advisory</div>
+                                    <div class="alert-desc">Moderate rainfall expected, 5-15mm accumulation</div>
+                                    <div class="alert-time">Valid: Next 12 hours</div>
+                                </div>
+                            </div>
+                            <div class="no-alerts" style="display: none;">
+                                <i class="fas fa-check-circle"></i>
+                                <p>No active weather alerts</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(alertsModal);
+                
+                // Close modal functionality
+                alertsModal.querySelector('.close-modal').addEventListener('click', function() {
+                    document.body.removeChild(alertsModal);
+                });
+                
+                alertsModal.addEventListener('click', function(e) {
+                    if (e.target === alertsModal) {
+                        document.body.removeChild(alertsModal);
+                    }
+                });
+            });
+            
+            document.getElementById('exportBtn')?.addEventListener('click', function() {
+                // Create export modal
+                const exportModal = document.createElement('div');
+                exportModal.className = 'export-modal';
+                exportModal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-download"></i> Expport Data</h3>
+                            <button class="close-modal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="export-options">
+                                <div class="export-section">
+                                    <h4>Data Type</h4>
+                                    <label><input type="checkbox" checked> Current Weather Data</label>
+                                    <label><input type="checkbox" checked> 7-Day Forecast</label>
+                                    <label><input type="checkbox"> Historical Data</label>
+                                </div>
+                                <div class="export-section">
+                                    <h4>Format</h4>
+                                    <label><input type="radio" name="format" value="csv" checked> CSV</label>
+                                    <label><input type="radio" name="format" value="json"> JSON</label>
+                                    <label><input type="radio" name="format" value="pdf"> PDF Report</label>
+                                </div>
+                                <div class="export-section">
+                                    <h4>Station</h4>
+                                    <select class="export-station">
+                                        <option value="all">All Stations</option>
+                                        <option value="botocan">Botocan (BHEPP)</option>
+                                        <option value="kalayaan">Kalayaan (KPSPP)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="export-actions">
+                                <button class="btn-export" onclick="performExport()">Export Data</button>
+                                <button class="btn-cancel" onclick="this.closest('.export-modal').remove()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(exportModal);
+                
+                // Close modal functionality
+                exportModal.querySelector('.close-modal').addEventListener('click', function() {
+                    document.body.removeChild(exportModal);
+                });
+                
+                exportModal.addEventListener('click', function(e) {
+                    if (e.target === exportModal) {
+                        document.body.removeChild(exportModal);
+                    }
+                });
+            });
+            
+            // Export function
+            window.performExport = function() {
+                const format = document.querySelector('input[name="format"]:checked')?.value || 'csv';
+                const station = document.querySelector('.export-station')?.value || 'all';
+                
+                // Generate sample data
+                const data = {
+                    timestamp: new Date().toISOString(),
+                    station: station,
+                    temperature: 26.5,
+                    humidity: 78,
+                    wind_speed: 8.2,
+                    pressure: 1008,
+                    rainfall: 0.2
+                };
+                
+                if (format === 'csv') {
+                    const csv = Object.keys(data).join(',') + '\n' + Object.values(data).join(',');
+                    downloadFile(csv, `weather_data_${station}_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+                } else if (format === 'json') {
+                    downloadFile(JSON.stringify(data, null, 2), `weather_data_${station}_${new Date().toISOString().split('T')[0]}.json`, 'application/json');
+                } else {
+                    alert('PDF export would be implemented with a PDF library');
+                }
+                
+                document.querySelector('.export-modal')?.remove();
+            };
+            
+            // Download helper function
+            function downloadFile(content, filename, contentType) {
+                const blob = new Blob([content], { type: contentType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            // Hero Button Functionality
+            let monitoringActive = false;
+            
+            document.getElementById('startMonitoringBtn')?.addEventListener('click', function() {
+                const btn = this;
+                const icon = btn.querySelector('i');
+                const text = btn.querySelector('span') || btn.childNodes[1];
+                
+                if (!monitoringActive) {
+                    // Start monitoring
+                    monitoringActive = true;
+                    icon.className = 'fas fa-pause';
+                    btn.innerHTML = '<i class="fas fa-pause"></i> Stop Monitoring';
+                    btn.classList.add('monitoring-active');
+                    
+                    // Start auto-refresh
+                    load15MinuteForecast();
+                    if (typeof updateForecastChart === 'function') {
+                        updateForecastChart();
+                    }
+                    
+                    // Update status
+                    document.querySelector('.status-badge.online').innerHTML = '<i class="fas fa-circle"></i> Monitoring Active';
+                    
+                    // Show notification
+                    showNotification('Monitoring started successfully', 'success');
+                } else {
+                    // Stop monitoring
+                    monitoringActive = false;
+                    icon.className = 'fas fa-play';
+                    btn.innerHTML = '<i class="fas fa-play"></i> Start Monitoring';
+                    btn.classList.remove('monitoring-active');
+                    
+                    // Update status
+                    document.querySelector('.status-badge.online').innerHTML = '<i class="fas fa-circle"></i> System Online';
+                    
+                    // Show notification
+                    showNotification('Monitoring stopped', 'info');
+                }
+            });
+            
+            document.getElementById('settingsBtn')?.addEventListener('click', function() {
+                // Create settings modal
+                const settingsModal = document.createElement('div');
+                settingsModal.className = 'settings-modal';
+                settingsModal.innerHTML = `
+                    <div class="modal-content settings-content">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-cog"></i> System Settings</h3>
+                            <button class="close-modal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="settings-tabs">
+                                <button class="tab-btn active" data-tab="general">General</button>
+                                <button class="tab-btn" data-tab="monitoring">Monitoring</button>
+                                <button class="tab-btn" data-tab="alerts">Alerts</button>
+                                <button class="tab-btn" data-tab="export">Export</button>
+                            </div>
+                            <div class="settings-content">
+                                <div class="tab-content active" id="general">
+                                    <div class="setting-group">
+                                        <h4>Display Settings</h4>
+                                        <label><input type="checkbox" checked> Show weather icons</label>
+                                        <label><input type="checkbox" checked> Auto-refresh data</label>
+                                        <label><input type="checkbox"> Dark mode</label>
+                                    </div>
+                                    <div class="setting-group">
+                                        <h4>Units</h4>
+                                        <label>Temperature: <select><option>Celsius</option><option>Fahrenheit</option></select></label>
+                                        <label>Wind Speed: <select><option>m/s</option><option>km/h</option><option>mph</option></select></label>
+                                        <label>Pressure: <select><option>hPa</option><option>mmHg</option><option>inHg</option></select></label>
+                                    </div>
+                                </div>
+                                <div class="tab-content" id="monitoring">
+                                    <div class="setting-group">
+                                        <h4>Data Collection</h4>
+                                        <label>Update Interval: <select><option>15 minutes</option><option>30 minutes</option><option>1 hour</option></select></label>
+                                        <label><input type="checkbox" checked> Enable real-time updates</label>
+                                        <label><input type="checkbox" checked> Store historical data</label>
+                                    </div>
+                                    <div class="setting-group">
+                                        <h4>Stations</h4>
+                                        <label><input type="checkbox" checked> Botocan (BHEPP)</label>
+                                        <label><input type="checkbox" checked> Kalayaan (KPSPP)</label>
+                                    </div>
+                                </div>
+                                <div class="tab-content" id="alerts">
+                                    <div class="setting-group">
+                                        <h4>Alert Thresholds</h4>
+                                        <label>High Temperature: <input type="number" value="35" min="0" max="50"> °C</label>
+                                        <label>High Wind Speed: <input type="number" value="15" min="0" max="50"> m/s</label>
+                                        <label>Heavy Rainfall: <input type="number" value="10" min="0" max="100"> mm/h</label>
+                                    </div>
+                                    <div class="setting-group">
+                                        <h4>Notifications</h4>
+                                        <label><input type="checkbox" checked> Email alerts</label>
+                                        <label><input type="checkbox"> SMS alerts</label>
+                                        <label><input type="checkbox" checked> Browser notifications</label>
+                                    </div>
+                                </div>
+                                <div class="tab-content" id="export">
+                                    <div class="setting-group">
+                                        <h4>Default Export Settings</h4>
+                                        <label>Format: <select><option>CSV</option><option>JSON</option><option>PDF</option></select></label>
+                                        <label>Include: <select><option>Current data only</option><option>Last 24 hours</option><option>Last 7 days</option></select></label>
+                                        <label><input type="checkbox" checked> Include metadata</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-actions">
+                                <button class="btn-save" onclick="saveSettings()">Save Settings</button>
+                                <button class="btn-reset" onclick="resetSettings()">Reset to Default</button>
+                                <button class="btn-cancel" onclick="this.closest('.settings-modal').remove()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(settingsModal);
+                
+                // Tab functionality
+                settingsModal.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const tabId = this.dataset.tab;
+                        
+                        // Update active tab
+                        settingsModal.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                        settingsModal.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                        
+                        this.classList.add('active');
+                        settingsModal.getElementById(tabId).classList.add('active');
+                    });
+                });
+                
+                // Close modal functionality
+                settingsModal.querySelector('.close-modal').addEventListener('click', function() {
+                    document.body.removeChild(settingsModal);
+                });
+                
+                settingsModal.addEventListener('click', function(e) {
+                    if (e.target === settingsModal) {
+                        document.body.removeChild(settingsModal);
+                    }
+                });
+            });
+            
+            // Settings functions
+            window.saveSettings = function() {
+                showNotification('Settings saved successfully', 'success');
+                document.querySelector('.settings-modal')?.remove();
+            };
+            
+            window.resetSettings = function() {
+                if (confirm('Reset all settings to default values?')) {
+                    showNotification('Settings reset to default', 'info');
+                }
+            };
+            
+            // Notification system
+            function showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.innerHTML = `
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                `;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.classList.add('show');
+                }, 100);
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 300);
+                }, 3000);
+            }
+    </script>
+    
+    <style>
+    /* Professional Forecasting Styles */
+    .forecast-header-pro {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, #1e293b, #334155);
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border-left: 4px solid #3b82f6;
+    }
+    
+    .forecast-status-panel {
+        display: flex;
+        gap: 30px;
+        align-items: center;
+    }
+    
+    .forecast-accuracy {
+        display: flex;
+        gap: 20px;
+    }
+    
+    .accuracy-metric {
+        text-align: center;
+    }
+    
+    .metric-label {
+        display: block;
+        font-size: 12px;
+        color: #94a3b8;
+        margin-bottom: 4px;
+    }
+    
+    .metric-value {
+        font-size: 18px;
+        font-weight: 700;
+        color: #22c55e;
+    }
+    
+    .alert-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #f59e0b;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    
+    .forecast-tools {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .tool-btn {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .tool-btn:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+    
+    .insights-panel {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    
+    .insight-card {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 16px;
+        border-left: 4px solid #e2e8f0;
+    }
+    
+    .trend-card { border-left-color: #3b82f6; }
+    .confidence-card { border-left-color: #10b981; }
+    .model-card { border-left-color: #f59e0b; }
+    
+    .insight-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .trend-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+    
+    .trend-value.rising { color: #ef4444; }
+    .trend-value.falling { color: #3b82f6; }
+    
+    .confidence-meter {
+        position: relative;
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .confidence-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981, #22c55e);
+        transition: width 0.5s;
+    }
+    
+    .confidence-text {
+        font-size: 14px;
+        font-weight: 600;
+        color: #10b981;
+        margin-top: 8px;
+        display: block;
+    }
+    
+    /* Enhanced Visual Styles */
+    .dashboard-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 50px;
+        margin-bottom: 30px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        min-height: 280px;
+    }
+    
+    .dashboard-hero::before {
+        content: '';
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 300px;
+        height: 300px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 50%;
+    }
+    
+    .dashboard-hero::after {
+        content: '';
+        position: absolute;
+        bottom: -100px;
+        left: -100px;
+        width: 250px;
+        height: 250px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+    }
+    
+    .hero-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 50px;
+        align-items: start;
+        position: relative;
+        z-index: 1;
+        height: 100%;
+    }
+    
+    .hero-left {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+        justify-content: space-between;
+        height: 100%;
+    }
+    
+    .hero-title {
+        font-size: 36px;
+        font-weight: 700;
+        margin: 0 0 12px 0;
+        line-height: 1.2;
+        color: #ffffff;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .hero-subtitle {
+        font-size: 18px;
+        margin: 0 0 20px 0;
+        line-height: 1.4;
+        color: #f1f5f9;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    .hero-badges {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .status-badge {
+        background: rgba(255,255,255,0.25);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        backdrop-filter: blur(10px);
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .status-badge.online i {
+        color: #22c55e;
+        animation: pulse 2s infinite;
+    }
+    
+    .hero-actions {
+        display: flex;
+        gap: 15px;
+    }
+    
+    .hero-btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .hero-btn.primary {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        backdrop-filter: blur(10px);
+    }
+    
+    .hero-btn.secondary {
+        background: transparent;
+        color: white;
+        border: 2px solid rgba(255,255,255,0.3);
+    }
+    
+    .hero-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+    
+    .hero-right {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+    }
+    
+    .hero-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    
+    .hero-stat {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        background: rgba(255,255,255,0.1);
+        padding: 20px;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    
+    .stat-icon.temperature { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    .stat-icon.humidity { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .stat-icon.wind { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+    .stat-icon.solar { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+    .stat-icon.rain { background: rgba(6, 182, 212, 0.2); color: #06b6d4; }
+    .stat-icon.pressure { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; }
+    
+    .stat-info {
+        flex: 1;
+    }
+    
+    .stat-number {
+        font-size: 24px;
+        font-weight: 800;
+        display: block;
+        margin-bottom: 4px;
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    .stat-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+        color: #e2e8f0;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    .stat-trend {
+        font-size: 11px;
+        color: #cbd5e1;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    .stat-trend.positive { color: #22c55e; }
+    .stat-trend.neutral { color: #94a3b8; }
+    
+    .hero-weather-summary {
+        background: rgba(255,255,255,0.1);
+        padding: 20px;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .current-conditions {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .condition-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    .condition-item i {
+        width: 20px;
+        text-align: center;
+        color: #f1f5f9;
+    }
+    
+    .condition-item small {
+        display: block;
+        font-size: 10px;
+        color: #cbd5e1;
+        margin-top: 2px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    .condition-item span {
+        font-weight: 600;
+        color: #ffffff;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    .quick-actions {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .action-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .action-btn.primary {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .action-btn.secondary {
+        background: white;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .action-btn.active {
+        background: #1d4ed8 !important;
+        color: white !important;
+        border-color: #1d4ed8 !important;
+    }
+    
+    /* Modal Styles */
+    .alerts-modal, .export-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    
+    .modal-header {
+        padding: 20px;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-header h3 {
+        margin: 0;
+        color: #1f2937;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .close-modal {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #6b7280;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .alert-item {
+        display: flex;
+        gap: 12px;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        border-left: 4px solid #e5e7eb;
+    }
+    
+    .alert-item.high {
+        background: #fef2f2;
+        border-left-color: #ef4444;
+    }
+    
+    .alert-item.medium {
+        background: #fffbeb;
+        border-left-color: #f59e0b;
+    }
+    
+    .alert-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 16px;
+    }
+    
+    .alert-item.high .alert-icon {
+        background: #ef4444;
+    }
+    
+    .alert-item.medium .alert-icon {
+        background: #f59e0b;
+    }
+    
+    .alert-title {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 4px;
+    }
+    
+    .alert-desc {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+    
+    .alert-time {
+        font-size: 12px;
+        color: #9ca3af;
+    }
+    
+    .export-options {
+        display: grid;
+        gap: 20px;
+    }
+    
+    .export-section h4 {
+        margin: 0 0 10px 0;
+        color: #374151;
+    }
+    
+    .export-section label {
+        display: block;
+        margin-bottom: 8px;
+        cursor: pointer;
+    }
+    
+    .export-station {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+    }
+    
+    .export-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        justify-content: flex-end;
+    }
+    
+    .btn-export {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    
+    .btn-cancel {
+        background: #6b7280;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    
+    .no-alerts {
+        text-align: center;
+        padding: 40px;
+        color: #10b981;
+    }
+    
+    .no-alerts i {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+    
+    /* Hero Button States */
+    .hero-btn.monitoring-active {
+        background: rgba(239, 68, 68, 0.2) !important;
+        border-color: rgba(239, 68, 68, 0.3) !important;
+    }
+    
+    /* Settings Modal */
+    .settings-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    }
+    
+    .settings-content {
+        width: 90%;
+        max-width: 700px;
+        max-height: 80vh;
+    }
+    
+    .settings-tabs {
+        display: flex;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 20px;
+    }
+    
+    .tab-btn {
+        background: none;
+        border: none;
+        padding: 12px 20px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.3s;
+    }
+    
+    .tab-btn.active {
+        border-bottom-color: #3b82f6;
+        color: #3b82f6;
+    }
+    
+    .tab-content {
+        display: none;
+    }
+    
+    .tab-content.active {
+        display: block;
+    }
+    
+    .setting-group {
+        margin-bottom: 25px;
+    }
+    
+    .setting-group h4 {
+        margin: 0 0 15px 0;
+        color: #374151;
+        font-size: 16px;
+    }
+    
+    .setting-group label {
+        display: block;
+        margin-bottom: 10px;
+        cursor: pointer;
+    }
+    
+    .setting-group input, .setting-group select {
+        margin-left: 10px;
+        padding: 4px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+    }
+    
+    .settings-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+        justify-content: flex-end;
+        border-top: 1px solid #e5e7eb;
+        padding-top: 20px;
+    }
+    
+    .btn-save {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    
+    .btn-reset {
+        background: #f59e0b;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    
+    /* Notification System */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transform: translateX(100%);
+        transition: transform 0.3s;
+        z-index: 10001;
+    }
+    
+    .notification.show {
+        transform: translateX(0);
+    }
+    
+    .notification.success {
+        border-left: 4px solid #10b981;
+        color: #10b981;
+    }
+    
+    .notification.error {
+        border-left: 4px solid #ef4444;
+        color: #ef4444;
+    }
+    
+    .notification.info {
+        border-left: 4px solid #3b82f6;
+        color: #3b82f6;
+    }
+    
+    /* Enhanced Station Controls */
+    .station-control-panel {
+        display: flex;
+        gap: 40px;
+        align-items: center;
+        background: #f8fafc;
+        padding: 30px;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        min-width: 700px;
+        width: 100%;
+        overflow-x: auto;
+    }
+    
+    .station-selector {
+        flex: 2;
+        min-width: 300px;
+    }
+    
+    .station-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .station-count {
+        font-size: 12px;
+        color: #10b981;
+        background: rgba(16, 185, 129, 0.1);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 500;
+    }
+    
+    .station-select {
+        width: 100%;
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 16px 20px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .station-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .station-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+        padding: 12px 16px;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .station-details {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .station-type {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .station-location {
+        font-size: 11px;
+        color: #9ca3af;
+    }
+    
+    .station-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .station-status.online {
+        color: #10b981;
+    }
+    
+    .station-status i {
+        font-size: 8px;
+        animation: pulse 2s infinite;
+    }
+    
+    .update-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        min-width: 180px;
+        flex: 1;
+    }
+    
+    .update-info {
+        text-align: center;
+    }
+    
+    .update-label {
+        font-size: 11px;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    
+    .update-time {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 2px;
+    }
+    
+    .update-countdown {
+        font-size: 11px;
+        color: #3b82f6;
+        font-weight: 500;
+    }
+    
+    .data-freshness {
+        text-align: center;
+    }
+    
+    .freshness-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-bottom: 4px;
+    }
+    
+    .freshness-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    
+    .freshness-dot.fresh {
+        background: #10b981;
+        animation: pulse 2s infinite;
+    }
+    
+    .freshness-text {
+        font-size: 12px;
+        font-weight: 500;
+        color: #10b981;
+    }
+    
+    .last-sync {
+        font-size: 10px;
+        color: #9ca3af;
+    }
+    
+    .section-header-enhanced {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding: 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .section-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .section-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 20px;
+    }
+    
+    .section-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+    }
+    
+    .section-desc {
+        font-size: 14px;
+        color: #6b7280;
+        margin: 4px 0 0 0;
+    }
+    
+
+    
+    .enhanced-select {
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 14px;
+        color: #374151;
+        min-width: 150px;
+    }
+    
+    .refresh-button {
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 50%;
+        background: #3b82f6;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .refresh-button:hover {
+        background: #2563eb;
+        transform: rotate(180deg);
+    }
+    
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+    }
+    
+    .status-dot.active {
+        background: #10b981;
+        animation: pulse 2s infinite;
+    }
+    
+    @media (max-width: 1200px) {
+        .station-control-panel { min-width: 600px; gap: 30px; }
+        .hero-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media (max-width: 992px) {
+        .dashboard-hero { padding: 30px; }
+        .hero-title { font-size: 28px; }
+        .station-control-panel { min-width: auto; gap: 20px; }
+        .gauge-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 15px; }
+    }
+    
+    @media (max-width: 768px) {
+        .hero-content { grid-template-columns: 1fr; gap: 25px; }
+        .hero-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .hero-stat { padding: 15px; }
+        .quick-actions { flex-wrap: wrap; gap: 10px; padding: 15px; }
+        .action-btn { flex: 1; min-width: calc(50% - 5px); justify-content: center; }
+        .gauge-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px; }
+        .station-control-panel { flex-direction: column; gap: 15px; padding: 20px; }
+        .section-header-enhanced { flex-direction: column; gap: 15px; padding: 15px; }
+        .modal-content { width: 95%; margin: 10px; }
+    }
+    
+    @media (max-width: 576px) {
+        .dashboard-hero { padding: 20px; margin-bottom: 20px; }
+        .hero-title { font-size: 24px; }
+        .hero-subtitle { font-size: 16px; }
+        .hero-stats-grid { grid-template-columns: 1fr; gap: 8px; }
+        .hero-stat { padding: 12px; }
+        .stat-number { font-size: 20px; }
+        .action-btn { min-width: 100%; margin-bottom: 5px; }
+        .gauge-grid { grid-template-columns: 1fr !important; }
+        .station-control-panel { padding: 15px; }
+        .date-range-container { flex-direction: column; gap: 8px; }
+        .datetime-input { padding: 10px 12px; font-size: 16px; }
+    }
+    
+    @media (max-width: 480px) {
+        .hero-actions { flex-direction: column; gap: 10px; }
+        .hero-btn { width: 100%; justify-content: center; }
+        .section-title { font-size: 20px; }
+        .gauge-card { min-height: 250px; }
+    }
+    
+    /* Improved Section Headers */
+    .section-title {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+    }
+    
+    .section-desc {
+        font-size: 12px !important;
+        margin-top: 2px !important;
+    }
+    
+    .section-icon {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 16px !important;
+        border-radius: 10px !important;
+    }
+    
+    .section-info {
+        gap: 12px !important;
+    }
+    
+    .control-label {
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        color: #6b7280 !important;
+        letter-spacing: 0.3px !important;
+    }
+    
+    .station-select {
+        padding: 10px 14px !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px !important;
+    }
+    
+    .station-count {
+        font-size: 10px !important;
+        padding: 2px 6px !important;
+        border-radius: 8px !important;
+    }
+    
+    .pro-select {
+        background: #f8fafc;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 14px;
+        color: #374151;
+    }
+    
+    .pro-btn {
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .pro-btn.primary {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .section-header-pro {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .section-title-pro {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .section-title-pro h2 {
+        margin: 0;
+        color: #1f2937;
+        font-size: 20px;
+    }
+    
+    .update-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: #6b7280;
+    }
+    
+    .update-dot {
+        width: 8px;
+        height: 8px;
+        background: #22c55e;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .section-controls-pro {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+    
+    .control-group-pro {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .control-group-pro label {
+        font-size: 12px;
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    /* Date Range Picker Styles */
+    .date-range-container {
+        display: flex;
+        gap: 15px;
+        margin-top: 8px;
+    }
+    
+    .date-input-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .date-input-group label {
+        font-size: 12px;
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    .datetime-input {
+        width: 100%;
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-size: 14px;
+        color: #374151;
+        transition: all 0.3s;
+    }
+    
+    .datetime-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .datetime-input:invalid {
+        border-color: #ef4444;
+    }
+    
+    #customDateRange {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 15px;
+        width: 100%;
+        max-width: 600px;
+        clear: both;
+    }
+    
+    @media (max-width: 768px) {
+        .date-range-container {
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .forecast-header-pro {
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .insights-panel {
+            grid-template-columns: 1fr;
+        }
+        
+        .section-header-pro {
+            flex-direction: column;
+            gap: 15px;
+        }
+    }
+    </style>
+</body>
+</html>

@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard 2 - CBK</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/all.min.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script>
+        function toggleChartPanel() {
+            const panel = document.getElementById('chartCustomPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function selectAllCharts() {
+            const checkboxes = document.querySelectorAll('#chartCustomPanel input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                toggleChartVisibility(cb.dataset.chart, true);
+            });
+        }
+        
+        function deselectAllCharts() {
+            const checkboxes = document.querySelectorAll('#chartCustomPanel input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+                toggleChartVisibility(cb.dataset.chart, false);
+            });
+        }
+        
+        function resetChartSelection() {
+            const checkboxes = document.querySelectorAll('#chartCustomPanel input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                toggleChartVisibility(cb.dataset.chart, true);
+            });
+        }
+        
+        function toggleChartVisibility(chartId, show) {
+            const chartCard = document.querySelector(`[data-chart-id="${chartId}"]`);
+            if (chartCard) {
+                if (show) {
+                    chartCard.classList.remove('hidden');
+                } else {
+                    chartCard.classList.add('hidden');
+                }
+            } else {
+                console.warn(`Chart element not found: ${chartId}`);
+            }
+        }
+        
+        // Initialize chart visibility controls
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkboxes = document.querySelectorAll('#chartCustomPanel input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', function() {
+                    toggleChartVisibility(this.dataset.chart, this.checked);
+                });
+            });
+            
+            // Initialize Global View controls
+            initializeGlobalViewControls();
+        });
+        
+        // Global View functionality
+        function initializeGlobalViewControls() {
+            const globalTimeRange = document.getElementById('globalTimeRange');
+            const globalCustomRange = document.getElementById('globalCustomRange');
+            const globalApply = document.getElementById('globalApply');
+            
+            globalTimeRange.addEventListener('change', function() {
+                console.log('Global time range changed to:', this.value);
+                if (this.value === 'custom') {
+                    globalCustomRange.style.display = 'flex';
+                    console.log('Showing custom range controls');
+                } else {
+                    globalCustomRange.style.display = 'none';
+                    applyGlobalTimeRange(this.value);
+                }
+            });
+            
+            globalApply.addEventListener('click', function() {
+                const startDate = document.getElementById('globalStartDate').value;
+                const endDate = document.getElementById('globalEndDate').value;
+                const grouping = document.getElementById('globalGrouping').value;
+                
+                if (startDate && endDate) {
+                    applyGlobalCustomRange(startDate, endDate, grouping);
+                }
+            });
+        }
+        
+        function applyGlobalTimeRange(range) {
+            const visibleCharts = document.querySelectorAll('.chart-card:not(.hidden)');
+            visibleCharts.forEach(chartCard => {
+                const presetBtns = chartCard.querySelectorAll('.preset-btn');
+                const customRange = chartCard.querySelector('.custom-range');
+                const groupingSelector = chartCard.querySelector('.grouping-selector');
+                
+                presetBtns.forEach(btn => btn.classList.remove('active'));
+                const targetBtn = chartCard.querySelector(`[data-range="${range}"]`);
+                if (targetBtn) targetBtn.classList.add('active');
+                
+                if (customRange) customRange.style.display = 'none';
+                if (groupingSelector) groupingSelector.style.display = 'none';
+            });
+        }
+        
+        function applyGlobalCustomRange(startDate, endDate, grouping) {
+            const visibleCharts = document.querySelectorAll('.chart-card:not(.hidden)');
+            visibleCharts.forEach(chartCard => {
+                const presetBtns = chartCard.querySelectorAll('.preset-btn');
+                const customRange = chartCard.querySelector('.custom-range');
+                const groupingSelector = chartCard.querySelector('.grouping-selector');
+                const groupingSelect = chartCard.querySelector('.grouping-select');
+                
+                presetBtns.forEach(btn => btn.classList.remove('active'));
+                const customBtn = chartCard.querySelector('[data-range="custom"]');
+                if (customBtn) customBtn.classList.add('active');
+                
+                if (customRange) {
+                    customRange.style.display = 'flex';
+                    const startInput = customRange.querySelector('.start-date');
+                    const endInput = customRange.querySelector('.end-date');
+                    if (startInput) startInput.value = startDate;
+                    if (endInput) endInput.value = endDate;
+                }
+                
+                if (groupingSelector) {
+                    groupingSelector.style.display = 'flex';
+                    if (groupingSelect) groupingSelect.value = grouping;
+                }
+            });
+        }
+    </script>
+    <style>
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chart-card {
+            background: #1f2937;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .chart-title {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .time-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 280px;
+        }
+        .quick-presets {
+            display: flex;
+            gap: 3px;
+            flex-wrap: wrap;
+        }
+        .preset-btn {
+            background: #374151;
+            color: #d1d5db;
+            border: 1px solid #4b5563;
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .preset-btn:hover {
+            background: #4b5563;
+            color: #ffffff;
+        }
+        .preset-btn.active {
+            background: #3b82f6;
+            color: #ffffff;
+            border-color: #3b82f6;
+        }
+        .custom-range {
+            display: none;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .custom-range input[type="date"] {
+            background: #374151;
+            color: #ffffff;
+            border: 1px solid #4b5563;
+            border-radius: 4px;
+            padding: 4px 6px;
+            font-size: 12px;
+        }
+        .apply-btn {
+            background: #10b981;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .apply-btn:hover {
+            background: #059669;
+        }
+        .grouping-selector {
+            display: none;
+            gap: 6px;
+            align-items: center;
+            padding-top: 4px;
+            border-top: 1px solid #4b5563;
+        }
+        .grouping-label {
+            color: #d1d5db;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .grouping-select {
+            background: #374151;
+            color: #ffffff;
+            border: 1px solid #4b5563;
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 11px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        .chart-custom-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1f2937;
+            border: 2px solid #374151;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #374151;
+            background: #111827;
+            border-radius: 10px 10px 0 0;
+        }
+        .panel-header h3 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 18px;
+        }
+        .close-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .panel-content {
+            padding: 20px;
+        }
+        .chart-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .category h4 {
+            color: #fbbf24;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .category label {
+            display: block;
+            color: #d1d5db;
+            margin: 8px 0;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .category input[type="checkbox"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+        }
+        .panel-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            padding-top: 15px;
+            border-top: 1px solid #374151;
+        }
+        .panel-actions button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .panel-actions button:hover {
+            background: #2563eb;
+        }
+        .chart-card.hidden {
+            display: none !important;
+        }
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            .chart-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .time-controls {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    {% include 'dashboard_components/admin_sidebar.html' %}
+
+    <div class="main-content" id="mainContent">
+        <div class="top-nav">
+            <div class="nav-left">
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title">Dashboard 2 - Analytics</h1>
+            </div>
+            <div class="nav-right">
+                <div class="user-menu">
+                    <div class="user-avatar">{{ session.user_id[0].upper() if session.user_id else 'U' }}</div>
+                    <span>{{ session.user_id if session.user_id else 'User' }}</span>
+                    <div class="user-dropdown">
+                        <a href="{{ url_for('logout') }}">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <div class="status-bar">
+                <div>
+                    <i class="fas fa-map-marker-alt" style="color: #fbbf24; font-size: 16px; margin-right: 8px;"></i>
+                    <span style="color: white; font-weight: 600; margin-right: 8px;">Location:</span>
+                    <select id="locationSelect" class="location-dropdown">
+                        {% for location in available_locations %}
+                            {% if location.id != 'none' and location.id != 'all' %}
+                            <option value="{{ location.id }}" {% if location.id == 'botocan' %}selected{% endif %}>
+                                {% if location.id == 'botocan' %}🏭
+                                {% elif location.id == 'botocan2' %}🏗️
+                                {% elif location.id == 'kalayaan01' %}⚡
+                                {% elif location.id == 'kalayaan02' %}🔋
+                                {% elif location.id == 'kalayaan03' %}💧
+                                {% elif location.id == 'kalayaan04' %}🌊
+                                {% else %}📍
+                                {% endif %} {{ location.name }}
+                            </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div>
+                        <i class="fas fa-chart-line" style="color: #fbbf24; font-size: 16px; margin-right: 8px;"></i>
+                        <span style="color: white; font-weight: 600; margin-right: 8px;">Global View:</span>
+                        <select id="globalTimeRange" class="location-dropdown">
+                            <option value="24h">Last 24h</option>
+                            <option value="7d">Last 7d</option>
+                            <option value="30d">Last 30d</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    <div id="globalCustomRange" style="display: none; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <input type="date" id="globalStartDate" style="background: #374151; color: #ffffff; border: 1px solid #4b5563; border-radius: 4px; padding: 4px 6px; font-size: 12px;">
+                        <input type="date" id="globalEndDate" style="background: #374151; color: #ffffff; border: 1px solid #4b5563; border-radius: 4px; padding: 4px 6px; font-size: 12px;">
+                        <select id="globalGrouping" style="background: #374151; color: #ffffff; border: 1px solid #4b5563; border-radius: 4px; padding: 4px 6px; font-size: 12px;">
+                            <option value="hourly">Hourly</option>
+                            <option value="daily" selected>Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                        <button id="globalApply" style="background: #10b981; color: #ffffff; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">Apply All</button>
+                    </div>
+                    <div>
+                        <i class="fas fa-chart-bar" style="color: #fbbf24; font-size: 16px; margin-right: 8px;"></i>
+                        <span style="color: white; font-weight: 600; margin-right: 8px;">Chart Type:</span>
+                        <select id="globalChartType" style="background: #374151; color: #ffffff; border: 1px solid #4b5563; border-radius: 4px; padding: 4px 6px; font-size: 12px;">
+                            <option value="line">📈 Line</option>
+                            <option value="bar">📊 Bar</option>
+                            <option value="area">📈 Area</option>
+                            <option value="scatter">⚫ Scatter</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="status-item status-optimal">
+                    <i class="fas fa-check-circle" style="color: #fbbf24;"></i>
+                    <span>System Operational</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-database" style="color: #fbbf24;"></i>
+                    <span>Data: <span id="currentLocationDisplay">Analytics</span></span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-clock" style="color: #fbbf24;"></i>
+                    <span id="currentTime">--:--:--</span>
+                </div>
+                <div class="status-item" style="cursor: pointer;" onclick="toggleChartPanel()">
+                    <i class="fas fa-cog" style="color: #fbbf24;"></i>
+                    <span>Customize Charts</span>
+                </div>
+            </div>
+            
+            <!-- Chart Customization Panel -->
+            <div id="chartCustomPanel" class="chart-custom-panel" style="display: none;">
+                <div class="panel-header">
+                    <h3><i class="fas fa-eye"></i> Show/Hide Charts</h3>
+                    <button onclick="toggleChartPanel()" class="close-btn">&times;</button>
+                </div>
+                <div class="panel-content">
+                    <div class="chart-categories">
+                        <div class="category">
+                            <h4>⚡ Power & Electrical</h4>
+                            <label><input type="checkbox" data-chart="mwChart" checked> Power Generation (MW)</label>
+                            <label><input type="checkbox" data-chart="mw_turbineChart" checked> Turbine Power (MW)</label>
+
+                            <label><input type="checkbox" data-chart="mvarChart" checked> Reactive Power (MVAR)</label>
+                            <label><input type="checkbox" data-chart="voltageChart" checked> Voltage (V)</label>
+                            <label><input type="checkbox" data-chart="currentChart" checked> Current (A)</label>
+                            <label><input type="checkbox" data-chart="hzChart" checked> Frequency (Hz)</label>
+                        </div>
+                        <div class="category">
+                            <h4>🌊 Flow & Water</h4>
+                            <label><input type="checkbox" data-chart="flow_turbineChart" checked> Turbine Flow</label>
+                            <label><input type="checkbox" data-chart="upper_water1Chart" checked> Upper Water 1</label>
+                        </div>
+                        <div class="category">
+                            <h4>🌤️ Environmental</h4>
+                            <label><input type="checkbox" data-chart="evaporationChart" checked> Evaporation</label>
+                            <label><input type="checkbox" data-chart="tChart" checked> Air Temperature</label>
+                            <label><input type="checkbox" data-chart="rhChart" checked> Humidity</label>
+                            <label><input type="checkbox" data-chart="rrChart" checked> Rainfall</label>
+                            <label><input type="checkbox" data-chart="spChart" checked> Surface Pressure</label>
+                            <label><input type="checkbox" data-chart="wsChart" checked> Wind Speed</label>
+                            <label><input type="checkbox" data-chart="wdChart" checked> Wind Direction</label>
+                            <label><input type="checkbox" data-chart="srChart" checked> Solar Radiation</label>
+                        </div>
+                    </div>
+                    <div class="panel-actions">
+                        <button onclick="selectAllCharts()">Select All</button>
+                        <button onclick="deselectAllCharts()">Deselect All</button>
+                        <button onclick="resetChartSelection()">Reset to Default</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="charts-grid">
+                <!-- Power (MW) Chart -->
+                <div class="chart-card" data-chart-id="mwChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">⚡ Power Generation (MW)</h3>
+                        <div class="time-controls" data-chart="mw">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="yearly">Yearly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="mwChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- MVAR Chart -->
+                <div class="chart-card" data-chart-id="mvarChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🔋 Reactive Power (MVAR)</h3>
+                        <div class="time-controls" data-chart="mvar">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="mvarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Voltage Chart -->
+                <div class="chart-card" data-chart-id="voltageChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">⚡ Voltage (V)</h3>
+                        <div class="time-controls" data-chart="voltage">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="voltageChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Current Chart -->
+                <div class="chart-card" data-chart-id="currentChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🔌 Current (A)</h3>
+                        <div class="time-controls" data-chart="current">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="currentChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Frequency Chart -->
+                <div class="chart-card" data-chart-id="hzChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">📊 Frequency (Hz)</h3>
+                        <div class="time-controls" data-chart="hz">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="hzChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Turbine Power Chart -->
+                <div class="chart-card" data-chart-id="mw_turbineChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🌊 Turbine Power (MW)</h3>
+                        <div class="time-controls" data-chart="mw_turbine">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="mw_turbineChart"></canvas>
+                    </div>
+                </div>
+
+
+
+                <!-- Turbine Flow Chart -->
+                <div class="chart-card" data-chart-id="flow_turbineChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🌊 Turbine Flow (m³/s)</h3>
+                        <div class="time-controls" data-chart="flow_turbine">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="flow_turbineChart"></canvas>
+                    </div>
+                </div>
+
+
+
+
+
+
+
+
+
+                <!-- Upper Water 1 Chart -->
+                <div class="chart-card" data-chart-id="upper_water1Chart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🏔️ Upper Water 1 (m)</h3>
+                        <div class="time-controls" data-chart="upper_water1">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="upper_water1Chart"></canvas>
+                    </div>
+                </div>
+
+
+
+
+
+                <!-- Evaporation Chart -->
+                <div class="chart-card" data-chart-id="evaporationChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">💨 Evaporation (mm)</h3>
+                        <div class="time-controls" data-chart="evaporation">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="evaporationChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Air Temperature Chart -->
+                <div class="chart-card" data-chart-id="tChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🌡️ Air Temperature (°C)</h3>
+                        <div class="time-controls" data-chart="t">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="tChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Humidity Chart -->
+                <div class="chart-card" data-chart-id="rhChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">💧 Humidity (%)</h3>
+                        <div class="time-controls" data-chart="rh">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="rhChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Rainfall Chart -->
+                <div class="chart-card" data-chart-id="rrChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🌧️ Rainfall (mm)</h3>
+                        <div class="time-controls" data-chart="rr">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="rrChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Surface Pressure Chart -->
+                <div class="chart-card" data-chart-id="spChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🌀 Surface Pressure (hPa)</h3>
+                        <div class="time-controls" data-chart="sp">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="spChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Wind Speed Chart -->
+                <div class="chart-card" data-chart-id="wsChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">💨 Wind Speed (m/s)</h3>
+                        <div class="time-controls" data-chart="ws">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="wsChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Wind Direction Chart -->
+                <div class="chart-card" data-chart-id="wdChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🧭 Wind Direction (°)</h3>
+                        <div class="time-controls" data-chart="wd">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="wdChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Solar Radiation Chart -->
+                <div class="chart-card" data-chart-id="srChart">
+                    <div class="chart-header">
+                        <h3 class="chart-title">☀️ Solar Radiation (W/m²)</h3>
+                        <div class="time-controls" data-chart="sr">
+                            <div class="quick-presets">
+                                <button class="preset-btn active" data-range="24h">24h</button>
+                                <button class="preset-btn" data-range="7d">7d</button>
+                                <button class="preset-btn" data-range="30d">30d</button>
+                                <button class="preset-btn" data-range="custom">Custom</button>
+                            </div>
+                            <div class="custom-range">
+                                <input type="date" class="start-date">
+                                <input type="date" class="end-date">
+                                <button class="apply-btn">Apply</button>
+                            </div>
+                            <div class="grouping-selector">
+                                <span class="grouping-label">Group by:</span>
+                                <select class="grouping-select">
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="srChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+            // Menu toggle functionality
+            if (menuToggle && sidebar && mainContent) {
+                menuToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (window.innerWidth <= 768) {
+                        sidebar.classList.toggle('mobile-open');
+                        if (sidebarOverlay) sidebarOverlay.classList.toggle('active');
+                        document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';
+                    } else {
+                        sidebar.classList.toggle('collapsed');
+                        mainContent.classList.toggle('expanded');
+                    }
+                });
+            }
+
+            if (sidebarOverlay && sidebar) {
+                sidebarOverlay.addEventListener('click', function() {
+                    sidebar.classList.remove('mobile-open');
+                    sidebarOverlay.classList.remove('active');
+                    document.body.style.overflow = '';
+                });
+            }
+
+            // Submenu functionality
+            const submenuItems = document.querySelectorAll('.has-submenu');
+            submenuItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const submenu = this.nextElementSibling;
+                    const isExpanded = this.classList.contains('expanded');
+                    
+                    submenuItems.forEach(otherItem => {
+                        if (otherItem !== this) {
+                            otherItem.classList.remove('expanded');
+                            const otherSubmenu = otherItem.nextElementSibling;
+                            if (otherSubmenu) otherSubmenu.classList.remove('expanded');
+                        }
+                    });
+                    
+                    if (isExpanded) {
+                        this.classList.remove('expanded');
+                        if (submenu) submenu.classList.remove('expanded');
+                    } else {
+                        this.classList.add('expanded');
+                        if (submenu) submenu.classList.add('expanded');
+                    }
+                });
+            });
+
+            // Update clock
+            function updateClock() {
+                const timeElement = document.getElementById('currentTime');
+                if (timeElement) {
+                    timeElement.textContent = new Date().toLocaleTimeString();
+                }
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
+
+            // Chart configurations
+            const chartConfigs = {
+                mw: { color: '#3b82f6', label: 'Power (MW)' },
+                mw_turbine: { color: '#06b6d4', label: 'Turbine Power (MW)' },
+
+                mvar: { color: '#10b981', label: 'Reactive Power (MVAR)' },
+                voltage: { color: '#f59e0b', label: 'Voltage (V)' },
+                current: { color: '#ef4444', label: 'Current (A)' },
+                hz: { color: '#8b5cf6', label: 'Frequency (Hz)' },
+                flow_turbine: { color: '#14b8a6', label: 'Turbine Flow (m³/s)' },
+                upper_water1: { color: '#3b82f6', label: 'Upper Water 1 (m)' },
+                evaporation: { color: '#ec4899', label: 'Evaporation (mm)' },
+                t: { color: '#ef4444', label: 'Air Temperature (°C)' },
+                rh: { color: '#22c55e', label: 'Humidity (%)' },
+                rr: { color: '#3b82f6', label: 'Rainfall (mm)' },
+                sp: { color: '#8b5cf6', label: 'Surface Pressure (hPa)' },
+                ws: { color: '#10b981', label: 'Wind Speed (m/s)' },
+                wd: { color: '#f59e0b', label: 'Wind Direction (°)' },
+                sr: { color: '#eab308', label: 'Solar Radiation (W/m²)' }
+            };
+
+            // Initialize charts
+            const charts = {};
+            
+            Object.keys(chartConfigs).forEach(param => {
+                const ctx = document.getElementById(param + 'Chart');
+                if (ctx) {
+                    charts[param] = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: [],
+                            datasets: [{
+                                label: chartConfigs[param].label,
+                                data: [],
+                                borderColor: chartConfigs[param].color,
+                                backgroundColor: chartConfigs[param].color + '20',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    labels: { color: '#ffffff' }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    ticks: { color: '#9ca3af' },
+                                    grid: { color: '#374151' }
+                                },
+                                y: {
+                                    ticks: { color: '#9ca3af' },
+                                    grid: { color: '#374151' }
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Load initial data
+                    fetchChartData(param, '24h', 'daily');
+                }
+            });
+            
+            // Location change handler
+            const locationSelect = document.getElementById('locationSelect');
+            if (locationSelect) {
+                // Set default location if none selected
+                if (!locationSelect.value || locationSelect.value === 'none') {
+                    locationSelect.value = 'botocan';
+                }
+                
+                locationSelect.addEventListener('change', function() {
+                    // Reload all charts with new location
+                    Object.keys(charts).forEach(param => {
+                        fetchChartData(param, '24h', 'daily');
+                    });
+                });
+            }
+            
+            // Global time controls
+            const globalTimeRange = document.getElementById('globalTimeRange');
+            const globalCustomRange = document.getElementById('globalCustomRange');
+            const globalStartDate = document.getElementById('globalStartDate');
+            const globalEndDate = document.getElementById('globalEndDate');
+            const globalGrouping = document.getElementById('globalGrouping');
+            const globalApply = document.getElementById('globalApply');
+            const globalChartType = document.getElementById('globalChartType');
+            
+            // Set default global dates
+            if (globalStartDate && globalEndDate) {
+                const today = new Date();
+                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                globalStartDate.value = weekAgo.toISOString().split('T')[0];
+                globalEndDate.value = today.toISOString().split('T')[0];
+            }
+            
+            // Global time range change
+            if (globalTimeRange) {
+                globalTimeRange.addEventListener('change', function() {
+                    if (this.value === 'custom') {
+                        globalCustomRange.style.display = 'flex';
+                    } else {
+                        globalCustomRange.style.display = 'none';
+                        // Apply to all charts
+                        updateAllCharts(this.value, 'auto');
+                    }
+                });
+            }
+            
+            // Global apply button
+            if (globalApply) {
+                globalApply.addEventListener('click', function() {
+                    const start = globalStartDate.value;
+                    const end = globalEndDate.value;
+                    const grouping = globalGrouping.value;
+                    if (start && end) {
+                        updateAllCharts('custom', grouping, start, end);
+                    }
+                });
+            }
+            
+            // Global chart type change
+            if (globalChartType) {
+                globalChartType.addEventListener('change', function() {
+                    changeAllChartTypes(this.value);
+                });
+            }
+            
+            function changeAllChartTypes(chartType) {
+                Object.keys(charts).forEach(param => {
+                    if (charts[param]) {
+                        // Store current data before destroying
+                        const currentData = {
+                            labels: [...charts[param].data.labels],
+                            data: [...charts[param].data.datasets[0].data]
+                        };
+                        
+                        // Destroy old chart
+                        charts[param].destroy();
+                        
+                        // Determine actual Chart.js type
+                        let actualType = chartType;
+                        if (chartType === 'area' || chartType === 'scatter') {
+                            actualType = 'line';
+                        }
+                        
+                        // Create new chart with different type
+                        const ctx = document.getElementById(param + 'Chart');
+                        const config = {
+                            type: actualType,
+                            data: {
+                                labels: currentData.labels,
+                                datasets: [{
+                                    label: chartConfigs[param].label,
+                                    data: currentData.data,
+                                    borderColor: chartConfigs[param].color,
+                                    backgroundColor: chartType === 'bar' ? chartConfigs[param].color : chartConfigs[param].color + '20',
+                                    pointBackgroundColor: chartConfigs[param].color,
+                                    pointBorderColor: chartConfigs[param].color,
+                                    borderWidth: chartType === 'scatter' ? 0 : 2,
+                                    fill: chartType === 'area',
+                                    tension: (chartType === 'line' || chartType === 'area') ? 0.4 : 0,
+                                    pointRadius: chartType === 'scatter' ? 5 : 3,
+                                    pointHoverRadius: chartType === 'scatter' ? 7 : 5,
+                                    showLine: chartType !== 'scatter'
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        labels: { color: '#ffffff' }
+                                    },
+                                    zoom: {
+                                        pan: {
+                                            enabled: true,
+                                            mode: 'x'
+                                        },
+                                        zoom: {
+                                            wheel: {
+                                                enabled: true
+                                            },
+                                            pinch: {
+                                                enabled: true
+                                            },
+                                            mode: 'x'
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        ticks: { color: '#9ca3af' },
+                                        grid: { color: '#374151' }
+                                    },
+                                    y: {
+                                        ticks: { color: '#9ca3af' },
+                                        grid: { color: '#374151' }
+                                    }
+                                }
+                            }
+                        };
+                        
+                        charts[param] = new Chart(ctx, config);
+                    }
+                });
+            }
+            
+            function updateAllCharts(range, grouping, startDate = null, endDate = null) {
+                // Update all individual chart controls to match global settings
+                document.querySelectorAll('.time-controls').forEach(control => {
+                    const presetBtns = control.querySelectorAll('.preset-btn');
+                    const customRange = control.querySelector('.custom-range');
+                    const groupingSelector = control.querySelector('.grouping-selector');
+                    const startDateInput = control.querySelector('.start-date');
+                    const endDateInput = control.querySelector('.end-date');
+                    const groupingSelect = control.querySelector('.grouping-select');
+                    
+                    // Update preset buttons
+                    presetBtns.forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.range === range) {
+                            btn.classList.add('active');
+                        }
+                    });
+                    
+                    // Handle custom range
+                    if (range === 'custom') {
+                        customRange.style.display = 'flex';
+                        groupingSelector.style.display = 'flex';
+                        if (startDate && endDate) {
+                            startDateInput.value = startDate;
+                            endDateInput.value = endDate;
+                        }
+                        if (groupingSelect) {
+                            groupingSelect.value = grouping;
+                        }
+                    } else {
+                        customRange.style.display = 'none';
+                        groupingSelector.style.display = 'none';
+                    }
+                });
+                
+                // Update all charts
+                Object.keys(charts).forEach(param => {
+                    updateChart(param, range, grouping, startDate, endDate);
+                });
+            }
+
+            // Time control handlers
+            document.querySelectorAll('.time-controls').forEach(control => {
+                const chartParam = control.dataset.chart;
+                const presetBtns = control.querySelectorAll('.preset-btn');
+                const customRange = control.querySelector('.custom-range');
+                const groupingSelector = control.querySelector('.grouping-selector');
+                const startDate = control.querySelector('.start-date');
+                const endDate = control.querySelector('.end-date');
+                const applyBtn = control.querySelector('.apply-btn');
+                const groupingSelect = control.querySelector('.grouping-select');
+
+                // Set default dates
+                const today = new Date();
+                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                startDate.value = weekAgo.toISOString().split('T')[0];
+                endDate.value = today.toISOString().split('T')[0];
+
+                // Preset button handlers
+                presetBtns.forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        presetBtns.forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+
+                        if (this.dataset.range === 'custom') {
+                            customRange.style.display = 'flex';
+                            groupingSelector.style.display = 'flex';
+                        } else {
+                            customRange.style.display = 'none';
+                            groupingSelector.style.display = 'none';
+                            updateChart(chartParam, this.dataset.range, 'auto');
+                        }
+                    });
+                });
+
+                // Apply custom range
+                applyBtn.addEventListener('click', function() {
+                    const start = startDate.value;
+                    const end = endDate.value;
+                    const grouping = groupingSelect.value;
+                    if (start && end) {
+                        updateChart(chartParam, 'custom', grouping, start, end);
+                    }
+                });
+
+                // Grouping change handler
+                groupingSelect.addEventListener('change', function() {
+                    const activeBtn = control.querySelector('.preset-btn.active');
+                    if (activeBtn && activeBtn.dataset.range === 'custom') {
+                        const start = startDate.value;
+                        const end = endDate.value;
+                        if (start && end) {
+                            updateChart(chartParam, 'custom', this.value, start, end);
+                        }
+                    }
+                });
+            });
+
+            function updateChart(param, range, grouping, startDate = null, endDate = null) {
+                if (charts[param]) {
+                    fetchChartData(param, range, grouping, startDate, endDate);
+                }
+            }
+            
+            function fetchChartData(param, range, grouping, startDate = null, endDate = null) {
+                const locationSelect = document.getElementById('locationSelect');
+                let location = locationSelect ? locationSelect.value : 'botocan';
+                
+                // Set default location if none selected
+                if (!location || location === 'none' || location === '') {
+                    location = 'botocan';
+                    if (locationSelect) {
+                        locationSelect.value = location;
+                    }
+                }
+                
+                // Skip API call for invalid locations
+                if (location === 'none' || location === '') {
+                    return;
+                }
+                
+                let url = `/api/chart-data?location=${location}&parameter=${param}&range=${range}&grouping=${grouping}`;
+                if (startDate && endDate) {
+                    url += `&start_date=${startDate}&end_date=${endDate}`;
+                }
+                
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            console.error('Chart data error:', data.error);
+                            console.error('Chart data error:', data.error);
+                            return;
+                        }
+                        
+                        if (charts[param]) {
+                            charts[param].data.labels = data.labels;
+                            charts[param].data.datasets[0].data = data.data;
+                            charts[param].update();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Fetch error:', error);
+                        console.error('Fetch error:', error);
+                    });
+            }
+
+
+        });
+    </script>
+</body>
+</html>

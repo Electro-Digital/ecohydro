@@ -1,0 +1,2289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Admin Dashboard - CBK</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/all.min.css') }} ">
+    <style>
+        .gauge-custom-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1f2937;
+            border: 2px solid #374151;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #374151;
+            background: #111827;
+            border-radius: 10px 10px 0 0;
+        }
+        .panel-header h3 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 18px;
+        }
+        .close-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .panel-content {
+            padding: 20px;
+        }
+        .gauge-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .category h4 {
+            color: #fbbf24;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .category label {
+            display: block;
+            color: #d1d5db;
+            margin: 8px 0;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .category input[type="checkbox"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+        }
+        .panel-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            padding-top: 15px;
+            border-top: 1px solid #374151;
+        }
+        .panel-actions button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .panel-actions button:hover {
+            background: #2563eb;
+        }
+        .gauge-card.hidden,
+        .water-level-card.hidden,
+        .flow-card.hidden,
+        .temp-card.hidden,
+        .weather-card.hidden,
+        .wind-card.hidden {
+            display: none !important;
+        }
+        
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-gauge@0.3.0/dist/chartjs-gauge.min.js"></script>
+</head>
+<body>
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    {% include 'dashboard_components/admin_sidebar.html' %}
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Top Navigation -->
+        <div class="top-nav">
+            <div class="nav-left">
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1 class="page-title" id="pageTitle">Dashboard Overview</h1>
+            </div>
+
+            <div class="nav-right">
+                <div class="search-box">
+                    <input type="text" placeholder="Search data, reports, users...">
+                    <i class="fas fa-search"></i>
+                </div>
+
+                <div class="user-menu">
+                    <div class="user-avatar">{{ session.user_id[0].upper() if session.user_id else 'U' }}</div>
+                    <span>{{ session.user_id if session.user_id else 'User' }} ({{ session.role.title() if session.role else 'Guest' }})</span>
+                    <i class="fas fa-chevron-down"></i>
+                    <div class="user-dropdown">
+                        <a href="{{ url_for('logout') }}">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard-content">
+            <!-- Critical Status Bar -->
+            <div class="status-bar">
+                <div>
+                    <i class="fas fa-map-marker-alt" style="color: #fbbf24; font-size: 16px; margin-right: 8px;"></i>
+                    <span style="color: white; font-weight: 600; margin-right: 8px;">Location:</span>
+                    <select id="locationSelect" class="location-dropdown">
+                        {% for location in available_locations %}
+                            <option value="{{ location.id }}" {% if location.id == 'botocan' %}selected{% endif %}>
+                                {% if location.id == 'all' %}🌍
+                                {% elif location.id == 'botocan' %}🏭
+                                {% elif location.id == 'botocan2' %}🏗️
+                                {% elif location.id == 'botocan_all' %}🏭🏗️
+                                {% elif location.id == 'kalayaan01' %}⚡
+                                {% elif location.id == 'kalayaan02' %}🔋
+                                {% elif location.id == 'kalayaan03' %}💧
+                                {% elif location.id == 'kalayaan04' %}🌊
+                                {% else %}📍
+                                {% endif %} {{ location.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="status-item status-optimal">
+                    <i class="fas fa-check-circle" style="color: #fbbf24;"></i>
+                    <span>System Operational</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-database" style="color: #fbbf24;"></i>
+                    <span>Data: <span id="currentLocationDisplay">Kalayaan 01</span></span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-clock" style="color: #fbbf24;"></i>
+                    <span id="currentTime">--:--:--</span>
+                </div> 
+
+                <div class="status-item">
+                    <i class="fas fa-thermometer-half" style="color: #fbbf24;"></i>
+                    <span>Water: <span id="waterTemp">--</span>°C</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-bolt" style="color: #fbbf24;"></i>
+                    <span>Power: <span id="totalMW">--</span> MW</span>
+                </div>
+                <div class="status-item" style="cursor: pointer;" onclick="toggleGaugePanel()">
+                    <i class="fas fa-cog" style="color: #fbbf24;"></i>
+                    <span>Customize Gauges</span>
+                </div>
+            </div>
+            
+            <!-- Gauge Customization Panel -->
+            <div id="gaugeCustomPanel" class="gauge-custom-panel" style="display: none;">
+                <div class="panel-header">
+                    <h3><i class="fas fa-eye"></i> Show/Hide Gauges</h3>
+                    <button onclick="toggleGaugePanel()" class="close-btn">&times;</button>
+                </div>
+                <div class="panel-content">
+                    <div class="gauge-categories">
+                        <div class="category">
+                            <h4>⚡ Power & Electrical</h4>
+                            <label><input type="checkbox" data-gauge="totalMWGauge" checked> Total Power (MW)</label>
+                            <label><input type="checkbox" data-gauge="turbineMWGauge" checked> Turbine Output (MW)</label>
+
+                            <label><input type="checkbox" data-gauge="megaVarGauge" checked> MEGA VAR</label>
+                            <label><input type="checkbox" data-gauge="voltageGauge" checked> Voltage (V)</label>
+                            <label><input type="checkbox" data-gauge="currentGauge" checked> Current (A)</label>
+                            <label><input type="checkbox" data-gauge="frequencyGauge" checked> Frequency (Hz)</label>
+                        </div>
+                        <div class="category">
+                            <h4>🌊 Flow & Water</h4>
+                            <label><input type="checkbox" data-gauge="flowTurbineGauge" checked> Flow Turbine</label>
+
+
+
+                            <label><input type="checkbox" data-gauge="upperWater1Gauge" checked> Upper Water 1</label>
+
+
+                        </div>
+                        <div class="category">
+                            <h4>🌤️ Environmental</h4>
+                            <label><input type="checkbox" data-gauge="evaporationGauge" checked> Evaporation</label>
+                            <label><input type="checkbox" data-gauge="airTempGauge" checked> Air Temperature</label>
+                            <label><input type="checkbox" data-gauge="humidityGauge" checked> Humidity</label>
+                            <label><input type="checkbox" data-gauge="rainfallGauge" checked> Rainfall</label>
+                            <label><input type="checkbox" data-gauge="pressureGauge" checked> Pressure</label>
+                            <label><input type="checkbox" data-gauge="windSpeedGauge" checked> Wind Speed</label>
+                            <label><input type="checkbox" data-gauge="windDirectionGauge" checked> Wind Direction</label>
+                            <label><input type="checkbox" data-gauge="solarRadiationGauge" checked> Solar Radiation</label>
+                        </div>
+                        <div class="category">
+                            <h4>💧 Water Management</h4>
+                            <label><input type="checkbox" data-gauge="flowCard" checked> Flow Rates Display</label>
+                            <label><input type="checkbox" data-gauge="tempCard" checked> Water Temperature Display</label>
+                        </div>
+                        <div class="category">
+                            <h4>🌍 Environmental Display</h4>
+                            <label><input type="checkbox" data-gauge="weatherCard" checked> Weather Station</label>
+                            <label><input type="checkbox" data-gauge="windCard" checked> Wind Monitoring</label>
+                        </div>
+
+                    </div>
+                    <div class="panel-actions">
+                        <button onclick="selectAllGauges()">Select All</button>
+                        <button onclick="deselectAllGauges()">Deselect All</button>
+                        <button onclick="resetGaugeSelection()">Reset to Default</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Power Generation Section -->
+            <div class="section-header">
+                <h2><i class="fas fa-bolt"></i> Power Parameters</h2>
+            </div>
+            <div class="power-grid">
+                <div class="gauge-card" data-gauge-id="totalMWGauge">
+                    <div class="gauge-header">
+                        <h3>Total Power</h3>
+                        <span class="unit">MW</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="totalMWGauge" width="200" height="200"></canvas>
+                        <div class="gauge-value" id="totalMWValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="turbineMWGauge">
+                    <div class="gauge-header">
+                        <h3>Turbine Output</h3>
+                        <span class="unit">MW</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="turbineMWGauge" width="200" height="200"></canvas>
+                        <div class="gauge-value" id="turbineMWValue">0.0</div>
+                    </div>
+                </div>
+
+
+
+                <div class="gauge-card" data-gauge-id="megaVarGauge">
+                    <div class="gauge-header">
+                        <h3>MEGA VAR</h3>
+                        <span class="unit">MVAR</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="megaVarGauge"></canvas>
+                        <div class="gauge-value" id="megaVarValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="voltageGauge">
+                    <div class="gauge-header">
+                        <h3>Voltage</h3>
+                        <span class="unit">V</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="voltageGauge" width="200" height="200"></canvas>
+                        <div class="gauge-value" id="voltageValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="currentGauge">
+                    <div class="gauge-header">
+                        <h3>Current</h3>
+                        <span class="unit">A</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="currentGauge" width="200" height="200"></canvas>
+                        <div class="gauge-value" id="currentValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="frequencyGauge">
+                    <div class="gauge-header">
+                        <h3>Frequency</h3>
+                        <span class="unit">Hz</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="frequencyGauge" width="200" height="200"></canvas>
+                        <div class="gauge-value" id="frequencyValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="flowTurbineGauge">
+                    <div class="gauge-header">
+                        <h3>Flow Turbine</h3>
+                        <span class="unit">m³/s</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="flowTurbineGauge"></canvas>
+                        <div class="gauge-value" id="flowTurbineGaugeValue">0.0</div>
+                    </div>
+                </div>
+
+
+
+
+
+
+            </div>
+
+            <!-- Water Level Parameters Section -->
+            <div class="section-header">
+                <h2><i class="fas fa-tint"></i> Water Level Parameters</h2>
+            </div>
+            <div class="water-grid">
+                <div class="gauge-card" data-gauge-id="upperWater1Gauge">
+                    <div class="gauge-header">
+                        <h3>Upper Water 1</h3>
+                        <span class="unit">m</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="upperWater1Gauge"></canvas>
+                        <div class="gauge-value" id="upperWater1GaugeValue">0.0</div>
+                    </div>
+                </div>
+
+
+
+
+
+
+
+                <div class="flow-card" data-gauge-id="flowCard">
+                    <div class="flow-header">
+                        <h3>Flow Rates</h3>
+                    </div>
+                    <div class="flow-meters">
+                        <div class="flow-meter">
+                            <div class="flow-icon">
+                                <i class="fas fa-cog fa-spin"></i>
+                            </div>
+                            <div class="flow-info">
+                                <span class="flow-label">Turbine</span>
+                                <span class="flow-value" id="flowTurbine">-- m³/s</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="temp-card" data-gauge-id="tempCard">
+                    <div class="temp-header">
+                        <h3>Water Temperature</h3>
+                    </div>
+                    <div class="thermometer-container">
+                        <div class="thermometer">
+                            <div class="thermometer-bulb"></div>
+                            <div class="thermometer-tube">
+                                <div class="mercury" id="waterTempMercury" style="height: 60%;"></div>
+                            </div>
+                            <div class="temp-scale">
+                                <span>30°</span>
+                                <span>20°</span>
+                                <span>10°</span>
+                                <span>0°</span>
+                            </div>
+                        </div>
+                        <div class="temp-reading" id="waterTempReading">22.5°C</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Environment Parameters Section -->
+            <div class="section-header">
+                <h2><i class="fas fa-thermometer-half"></i> Environment Parameters</h2>
+            </div>
+            <div class="environmental-grid">
+                <div class="gauge-card" data-gauge-id="evaporationGauge">
+                    <div class="gauge-header">
+                        <h3>Evaporation</h3>
+                        <span class="unit">mm</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="evaporationGauge"></canvas>
+                        <div class="gauge-value" id="evaporationGaugeValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="airTempGauge">
+                    <div class="gauge-header">
+                        <h3>Temperature</h3>
+                        <span class="unit">°C</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="temperatureGauge"></canvas>
+                        <div class="gauge-value" id="temperatureGaugeValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="humidityGauge">
+                    <div class="gauge-header">
+                        <h3>Humidity</h3>
+                        <span class="unit">%</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="humidityGauge"></canvas>
+                        <div class="gauge-value" id="humidityGaugeValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="rainfallGauge">
+                    <div class="gauge-header">
+                        <h3>Rainfall</h3>
+                        <span class="unit">mm</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="rainfallGauge"></canvas>
+                        <div class="gauge-value" id="rainfallGaugeValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="pressureGauge">
+                    <div class="gauge-header">
+                        <h3>Surface Pressure</h3>
+                        <span class="unit">hPa</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="surfacePressureGauge"></canvas>
+                        <div class="gauge-value" id="surfacePressureGaugeValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="windSpeedGauge">
+                    <div class="gauge-header">
+                        <h3>Wind Speed</h3>
+                        <span class="unit">m/s</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="windSpeedGauge"></canvas>
+                        <div class="gauge-value" id="windSpeedGaugeValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="windDirectionGauge">
+                    <div class="gauge-header">
+                        <h3>Wind Direction</h3>
+                        <span class="unit">°</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="windDirectionGauge"></canvas>
+                        <div class="gauge-value" id="windDirectionGaugeValue">0.0</div>
+                    </div>
+                </div>
+
+                <div class="weather-card" data-gauge-id="weatherCard">
+                    <div class="weather-header">
+                        <h3>Weather Station</h3>
+                        <div class="weather-status">
+                            <i class="fas fa-sun"></i>
+                            <span>Clear</span>
+                        </div>
+                    </div>
+                    <div class="weather-metrics">
+                        <div class="metric">
+                            <i class="fas fa-thermometer-half"></i>
+                            <span>Air Temp</span>
+                            <strong id="airTemp">--°C</strong>
+                        </div>
+                        <div class="metric">
+                            <i class="fas fa-tint"></i>
+                            <span>Humidity</span>
+                            <strong id="humidity">--%</strong>
+                        </div>
+                        <div class="metric">
+                            <i class="fas fa-cloud-rain"></i>
+                            <span>Rainfall</span>
+                            <strong id="rainfall">-- mm</strong>
+                        </div>
+                        <div class="metric">
+                            <i class="fas fa-compress-arrows-alt"></i>
+                            <span>Pressure</span>
+                            <strong id="pressure">-- hPa</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wind-card" data-gauge-id="windCard">
+                    <div class="wind-header">
+                        <h3>Wind Monitoring</h3>
+                    </div>
+                    <div class="wind-display">
+                        <div class="compass">
+                            <div class="compass-face">
+                                <div class="compass-needle" id="windNeedle" style="transform: rotate(45deg);"></div>
+                                <div class="compass-directions">
+                                    <span class="north">N</span>
+                                    <span class="east">E</span>
+                                    <span class="south">S</span>
+                                    <span class="west">W</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="wind-data">
+                            <div class="wind-speed">
+                                <span>Speed</span>
+                                <strong id="windSpeed">-- m/s</strong>
+                            </div>
+                            <div class="wind-direction">
+                                <span>Direction</span>
+                                <strong id="windDirection">--°</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gauge-card" data-gauge-id="solarRadiationGauge">
+                    <div class="gauge-header">
+                        <h3>Solar Radiation</h3>
+                        <span class="unit">W/m²</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="solarGauge"></canvas>
+                        <div class="gauge-value" id="solarValue">-- W/m²</div>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <script>
+        // Dashboard JavaScript functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const menuItems = document.querySelectorAll('.menu-item');
+            const pageTitle = document.getElementById('pageTitle');
+
+            // Simple menu toggle
+            if (menuToggle && sidebar && mainContent) {
+                menuToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Menu toggle clicked!');
+                    
+                    if (window.innerWidth <= 768) {
+                        // Mobile behavior
+                        sidebar.classList.toggle('mobile-open');
+                        if (sidebarOverlay) {
+                            sidebarOverlay.classList.toggle('active');
+                        }
+                        document.body.style.overflow = sidebar.classList.contains('mobile-open') ? 'hidden' : '';
+                    } else {
+                        // Desktop behavior
+                        sidebar.classList.toggle('collapsed');
+                        mainContent.classList.toggle('expanded');
+                    }
+                });
+            } else {
+                console.error('Menu toggle elements not found!');
+            }
+
+            // Touch gesture support for sidebar
+            let touchStartX = 0;
+            let touchEndX = 0;
+
+            document.addEventListener('touchstart', function(e) {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+
+            document.addEventListener('touchend', function(e) {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipeGesture();
+            });
+
+            function handleSwipeGesture() {
+                const swipeThreshold = 50;
+                const swipeDistance = touchEndX - touchStartX;
+
+                if (window.innerWidth <= 768) {
+                    // Swipe right to open sidebar
+                    if (swipeDistance > swipeThreshold && touchStartX < 50) {
+                        sidebar.classList.add('mobile-open');
+                        sidebarOverlay.classList.add('active');
+                        document.body.style.overflow = 'hidden';
+                    }
+                    // Swipe left to close sidebar
+                    else if (swipeDistance < -swipeThreshold && sidebar.classList.contains('mobile-open')) {
+                        sidebar.classList.remove('mobile-open');
+                        sidebarOverlay.classList.remove('active');
+                        document.body.style.overflow = '';
+                    }
+                }
+            }
+
+            // Enhanced overlay handling for mobile
+            sidebarOverlay.addEventListener('click', function() {
+                sidebar.classList.remove('mobile-open');
+                sidebarOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            });
+
+            // Enhanced window resize handling
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    if (window.innerWidth > 768) {
+                        sidebar.classList.remove('mobile-open');
+                        sidebarOverlay.classList.remove('active');
+                        document.body.style.overflow = '';
+
+                        // Reset sidebar to normal state on desktop
+                        if (sidebar.classList.contains('collapsed')) {
+                            sidebar.classList.remove('collapsed');
+                            mainContent.classList.remove('expanded');
+                        }
+                    }
+
+                    // Recalculate gauge sizes on resize
+                    if (typeof updateGaugeSizes === 'function') {
+                        updateGaugeSizes();
+                    }
+                }, 250);
+            });
+
+            // Prevent zoom on double tap for iOS
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function(event) {
+                const now = (new Date()).getTime();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
+
+            // Enhanced menu item navigation with touch feedback
+            menuItems.forEach(item => {
+                // Add touch feedback
+                item.addEventListener('touchstart', function() {
+                    this.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                });
+
+                item.addEventListener('touchend', function() {
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 150);
+                });
+
+                item.addEventListener('click', function(e) {
+                    if (this.getAttribute('href') === '#') {
+                        e.preventDefault();
+
+                        // Remove active class from all items
+                        menuItems.forEach(menuItem => {
+                            menuItem.classList.remove('active');
+                        });
+
+                        // Add active class to clicked item
+                        this.classList.add('active');
+
+                        // Update page title
+                        const pageName = this.getAttribute('data-page');
+                        updatePageContent(pageName);
+
+                        // Close mobile menu if open with smooth transition
+                        if (window.innerWidth <= 768) {
+                            setTimeout(() => {
+                                sidebar.classList.remove('mobile-open');
+                                sidebarOverlay.classList.remove('active');
+                                document.body.style.overflow = '';
+                            }, 100);
+                        }
+                    }
+                });
+            });
+
+            // Update page content based on navigation
+            function updatePageContent(page) {
+                const titles = {
+                    'dashboard': 'Dashboard Overview',
+                    'dashboard1': 'Dashboard 1 - Power Generation',
+                    'dashboard2': 'Dashboard 2 - Environmental Monitoring',
+                    'analytics': 'Analytics & Insights',
+                    'charts': 'Charts & Reports',
+                    'data': 'Data Management',
+                    'users': 'User Management',
+                    'settings': 'Settings',
+                    'export': 'Export Data'
+                };
+
+                pageTitle.textContent = titles[page] || 'Dashboard';
+
+                // Here you can add logic to show/hide different content sections
+                // For now, we'll just update the title
+                console.log('Navigated to:', page);
+            }
+
+            // Simulate real-time data updates
+            function updateStats() {
+                const statValues = document.querySelectorAll('.stat-value');
+                statValues.forEach(stat => {
+                    const currentValue = parseInt(stat.textContent.replace(/[^0-9]/g, ''));
+                    if (currentValue) {
+                        const variation = Math.floor(Math.random() * 10) - 5; // Random variation
+                        const newValue = Math.max(0, currentValue + variation);
+
+                        if (stat.textContent.includes('$')) {
+                            stat.textContent = '$' + newValue.toLocaleString();
+                        } else if (stat.textContent.includes('%')) {
+                            stat.textContent = newValue + '%';
+                        } else {
+                            stat.textContent = newValue.toLocaleString();
+                        }
+                    }
+                });
+            }
+
+            // Update stats every 30 seconds (optional - remove if not needed)
+            // setInterval(updateStats, 30000);
+
+            // Search functionality
+            const searchInput = document.querySelector('.search-box input');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const searchTerm = this.value.trim();
+                        if (searchTerm) {
+                            console.log('Searching for:', searchTerm);
+                            // Implement search functionality here
+                            alert('Search functionality will be implemented here for: ' + searchTerm);
+                        }
+                    }
+                });
+            }
+
+            // User menu functionality
+            const userMenu = document.querySelector('.user-menu');
+            if (userMenu) {
+                userMenu.addEventListener('click', function() {
+                    // Implement user menu dropdown here
+                    console.log('User menu clicked');
+                    alert('User menu options:\n- Profile Settings\n- Account Info\n- Logout');
+                });
+            }
+
+            // Chart placeholder click handlers (for future chart integration)
+            const chartPlaceholders = document.querySelectorAll('.chart-placeholder');
+            chartPlaceholders.forEach(placeholder => {
+                placeholder.addEventListener('click', function() {
+                    console.log('Chart clicked - ready for integration');
+                    // This is where you'll integrate your actual charts
+                });
+            });
+
+            // Add smooth scrolling for better UX
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+
+            // Initialize sensor dashboard with mobile optimization
+            initializeGauges();
+            updateSensorDisplays();
+
+            // Start real-time updates with adaptive intervals
+            const updateInterval = window.innerWidth <= 480 ? 8000 : 5000; // Slower on mobile to save battery
+            setInterval(fetchRealTimeData, updateInterval);
+
+            // Start real-time clock updates every second
+            setInterval(updateClock, 1000);
+            updateClock(); // Update immediately
+
+            // Initial data fetch
+            fetchRealTimeData();
+
+            // Add responsive resize handler
+            let resizeTimeout;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    updateGaugeSizes();
+                }, 150);
+            });
+
+            // Add mobile-specific event listeners
+            if ('serviceWorker' in navigator) {
+                // Register service worker for offline capability (optional)
+                console.log('Service Worker support detected');
+            }
+
+            // Handle device orientation changes
+            window.addEventListener('orientationchange', function() {
+                setTimeout(() => {
+                    updateGaugeSizes();
+                    updateSensorDisplays();
+                }, 500);
+            });
+
+            // Optimize for mobile performance
+            if (window.innerWidth <= 768) {
+                // Reduce animation complexity on mobile
+                document.documentElement.style.setProperty('--animation-duration', '0.2s');
+
+                // Add mobile-specific classes
+                document.body.classList.add('mobile-device');
+            }
+            // Set up submenu functionality - allow all submenus to collapse/expand
+            const submenuItems = document.querySelectorAll('.has-submenu');
+            
+            submenuItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const submenu = this.nextElementSibling;
+                    const isExpanded = this.classList.contains('expanded');
+                    
+                    // Close all other submenus
+                    submenuItems.forEach(otherItem => {
+                        if (otherItem !== this) {
+                            otherItem.classList.remove('expanded');
+                            const otherSubmenu = otherItem.nextElementSibling;
+                            if (otherSubmenu) {
+                                otherSubmenu.classList.remove('expanded');
+                            }
+                        }
+                    });
+                    
+                    // Toggle current submenu
+                    if (isExpanded) {
+                        this.classList.remove('expanded');
+                        submenu.classList.remove('expanded');
+                    } else {
+                        this.classList.add('expanded');
+                        submenu.classList.add('expanded');
+                    }
+                });
+            });
+
+            // Handle submenu item clicks
+            const submenuItemElements = document.querySelectorAll('.submenu-item');
+            submenuItemElements.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    // Allow normal navigation for nav-link items
+                    if (this.classList.contains('nav-link')) {
+                        return; // Let the browser handle the navigation
+                    }
+                    e.preventDefault();
+                    
+                    // Remove active class from all menu items
+                    menuItems.forEach(menuItem => {
+                        menuItem.classList.remove('active');
+                    });
+                    submenuItemElements.forEach(submenuItem => {
+                        submenuItem.classList.remove('active');
+                    });
+                    
+                    // Add active class to clicked submenu item
+                    this.classList.add('active');
+                    
+                    // Update page content
+                    const pageName = this.getAttribute('data-page');
+                    updatePageContent(pageName);
+                });
+            });
+
+            // Set up location selector
+            const locationSelect = document.getElementById('locationSelect');
+            if (locationSelect) {
+                locationSelect.addEventListener('change', handleLocationChange);
+                // Set initial value to botocan
+                locationSelect.value = 'botocan';
+                currentLocation = 'botocan';
+                // Initialize with current location
+                updateLocationDisplay();
+            }
+        });
+
+        // Location management - Initialize based on user permissions
+        const userLocations = {{ user_locations | tojson }};
+        const isAdmin = {{ is_admin | tojson }};
+        let currentLocation = 'botocan'; // Default to botocan
+
+        function handleLocationChange() {
+            const locationSelect = document.getElementById('locationSelect');
+            currentLocation = locationSelect.value;
+
+            // Show loading indicator
+            showLocationChangeLoading();
+
+            // Update the page title to show current location
+            updateLocationDisplay();
+
+            // Handle special cases for "all", "botocan_all" and "none"
+            if (currentLocation === 'all') {
+                // Show aggregated data from all locations
+                console.log('Showing data from all locations');
+                fetchAggregatedData();
+            } else if (currentLocation === 'botocan_all') {
+                // Show aggregated data from all Botocan plants
+                console.log('Showing data from all Botocan plants');
+                fetchRealTimeData();
+            } else if (currentLocation === 'none') {
+                // Clear all data displays
+                console.log('Clearing all location data');
+                clearLocationData();
+            } else {
+                // Refresh sensor data for the specific location
+                fetchRealTimeData();
+            }
+
+            // Show notification that data is now filtered by location
+            showLocationChangeNotification();
+
+            console.log('Location changed to:', currentLocation);
+        }
+
+        function showLocationChangeLoading() {
+            // Add a subtle loading effect to gauges
+            const gaugeCards = document.querySelectorAll('.gauge-card');
+            gaugeCards.forEach(card => {
+                card.style.opacity = '0.7';
+                card.style.transition = 'opacity 0.3s ease';
+            });
+
+            // Reset opacity after data loads
+            setTimeout(() => {
+                gaugeCards.forEach(card => {
+                    card.style.opacity = '1';
+                });
+            }, 1000);
+        }
+
+        function showLocationChangeNotification() {
+            const locationNames = {
+                'all': 'All Locations',
+                'botocan': 'Botocan',
+                'botocan2': 'Botocan 2',
+                'botocan_all': 'All Botocan Plants',
+                'kalayaan01': 'Kalayaan 01',
+                'kalayaan02': 'Kalayaan 02',
+                'kalayaan03': 'Kalayaan 03',
+                'kalayaan04': 'Kalayaan 04',
+                'none': 'No Location Selected'
+            };
+
+            // Create a temporary notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: rgba(251, 191, 36, 0.9);
+                color: #1f2937;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-weight: 500;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            `;
+            notification.textContent = `Now showing data for: ${locationNames[currentLocation]}`;
+
+            document.body.appendChild(notification);
+
+            // Animate in
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        function updateLocationDisplay() {
+            const locationNames = {
+                'all': 'All Locations',
+                'botocan': 'Botocan',
+                'botocan2': 'Botocan 2',
+                'botocan_all': 'All Botocan Plants',
+                'kalayaan01': 'Kalayaan 01',
+                'kalayaan02': 'Kalayaan 02',
+                'kalayaan03': 'Kalayaan 03',
+                'kalayaan04': 'Kalayaan 04',
+                'none': 'No Location Selected'
+            };
+
+            // Update page title to include location
+            const pageTitle = document.getElementById('pageTitle');
+            if (pageTitle) {
+                pageTitle.textContent = `Dashboard - ${locationNames[currentLocation]}`;
+            }
+
+            // Update status bar location indicator
+            const currentLocationDisplay = document.getElementById('currentLocationDisplay');
+            if (currentLocationDisplay) {
+                currentLocationDisplay.textContent = locationNames[currentLocation];
+            }
+
+            // Update browser title
+            document.title = `CBK Dashboard - ${locationNames[currentLocation]}`;
+        }
+
+        // Function to fetch aggregated data from all locations
+        function fetchAggregatedData() {
+            console.log('Fetching aggregated data from all locations...');
+
+            // Fetch real aggregated data from API
+            fetch('/api/sensor-data?location=all')
+                .then(response => response.json())
+                .then(data => {
+                    sensorData = data;
+                    updateSensorDisplays();
+                    updateDataSourceIndicator(data.data_source || 'aggregated');
+                    if (data.data_source === 'botocan_aggregated') {
+                        showAggregationInfo(2, 'Botocan'); // 2 Botocan locations
+                    } else {
+                        showAggregationInfo(5); // 5 locations
+                    }
+                })
+                .catch(error => {
+                    console.error('Aggregated data fetch error:', error);
+                    // Fallback to simulated aggregated data
+                    const aggregatedData = {
+                        totalPower: 245.8,
+                        totalTurbineOutput: 198.5,
+                        totalPumpConsumption: 47.3,
+                        avgVoltage: 13.8,
+                        avgCurrent: 892,
+                        avgFrequency: 60.1,
+                        avgWaterLevel: 98.2,
+                        locationCount: 5
+                    };
+
+                    // Update gauges with aggregated values
+                    updateGaugeWithAggregatedData('totalPower', aggregatedData.totalPower, 'MW');
+                    updateGaugeWithAggregatedData('turbineOutput', aggregatedData.totalTurbineOutput, 'MW');
+                    updateGaugeWithAggregatedData('pumpConsumption', aggregatedData.totalPumpConsumption, 'MW');
+                    updateGaugeWithAggregatedData('voltage', aggregatedData.avgVoltage, 'V');
+                    updateGaugeWithAggregatedData('current', aggregatedData.avgCurrent, 'A');
+                    updateGaugeWithAggregatedData('frequency', aggregatedData.avgFrequency, 'Hz');
+                    updateGaugeWithAggregatedData('netHead', aggregatedData.avgWaterLevel, 'm');
+
+                    // Show aggregation info
+                    showAggregationInfo(aggregatedData.locationCount);
+                    updateDataSourceIndicator('simulated');
+                });
+        }
+
+        // Function to clear all location data
+        function clearLocationData() {
+            console.log('Clearing all location data...');
+
+            // Fetch empty data from API
+            fetch('/api/sensor-data?location=none')
+                .then(response => response.json())
+                .then(data => {
+                    sensorData = data;
+                    updateSensorDisplays();
+                    updateDataSourceIndicator(data.data_source || 'none');
+                    showNoDataMessage();
+                })
+                .catch(error => {
+                    console.error('Clear data error:', error);
+                    // Fallback to manual clearing
+                    const gaugeElements = document.querySelectorAll('.gauge-card');
+                    gaugeElements.forEach(card => {
+                        const valueElement = card.querySelector('.gauge-value');
+                        if (valueElement) {
+                            valueElement.textContent = '--';
+                        }
+                        card.style.opacity = '0.5';
+                    });
+                    showNoDataMessage();
+                    updateDataSourceIndicator('none');
+                });
+        }
+
+        // Helper function to update gauges with aggregated data
+        function updateGaugeWithAggregatedData(gaugeId, value, unit) {
+            const gaugeElement = document.querySelector(`[data-gauge="${gaugeId}"]`);
+            if (gaugeElement) {
+                const valueElement = gaugeElement.querySelector('.gauge-value');
+                if (valueElement) {
+                    valueElement.textContent = value.toFixed(1);
+                }
+                gaugeElement.style.opacity = '1';
+            }
+        }
+
+        // Function to show aggregation info
+        function showAggregationInfo(locationCount, plantType = '') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #10b981, #059669);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-weight: 500;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            `;
+            
+            if (plantType) {
+                notification.textContent = `Showing aggregated data from ${locationCount} ${plantType} plants`;
+            } else {
+                notification.textContent = `Showing aggregated data from ${locationCount} locations`;
+            }
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Function to show no data message
+        function showNoDataMessage() {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #ef4444, #dc2626);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-weight: 500;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            `;
+            notification.textContent = 'No location selected - Data cleared';
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Utility function to format numbers
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+
+        // Sensor Data Management
+        let sensorData = {
+            mw: 45.2,
+            mw_turbine: 48.7,
+            mw_pump: 3.5,
+            mvar: 12.3,
+            voltage: 13800,
+            current: 1250,
+            hz: 50.0,
+            flow_turbine: 125.5,
+            flow_pump: 15.2,
+            flow_other: 8.7,
+            net_head: 85.3,
+            temp_water: 22.5,
+            upper_water1: 65.2,
+            upper_water2: 64.8,
+            lower_water1: 45.1,
+            lower_water2: 44.9,
+            evaporation: 2.3,
+            air_temp: 28.5,
+            humidity: 65,
+            rainfall: 0.0,
+            pressure: 1013.2,
+            windspeed: 12.5,
+            wind_direction: 225,
+            solar_radiation: 850
+        };
+
+        // Gauge configurations
+        const gaugeConfigs = {
+            totalMW: { min: 0, max: 100, color: '#667eea', unit: 'MW' },
+            turbineMW: { min: 0, max: 80, color: '#10b981', unit: 'MW' },
+            pumpMW: { min: 0, max: 20, color: '#f59e0b', unit: 'MW' },
+            megaVar: { min: 0, max: 50, color: '#ec4899', unit: 'MVAR' },
+            voltage: { min: 0, max: 20000, color: '#ef4444', unit: 'V' },
+            current: { min: 0, max: 2000, color: '#8b5cf6', unit: 'A' },
+            frequency: { min: 45, max: 55, color: '#06b6d4', unit: 'Hz' },
+            flowTurbine: { min: 0, max: 200, color: '#22c55e', unit: 'm³/s' },
+            flowPump: { min: 0, max: 100, color: '#3b82f6', unit: 'm³/s' },
+            flowOther: { min: 0, max: 50, color: '#a855f7', unit: 'm³/s' },
+            netHead: { min: 0, max: 1200, color: '#06b6d4', unit: 'm', type: 'linear' },
+            // Water level gauges (linear)
+            upperWater1: { min: 0, max: 1000, color: '#3b82f6', unit: 'm', type: 'linear' },
+            upperWater2: { min: 0, max: 1000, color: '#1d4ed8', unit: 'm', type: 'linear' },
+            lowerWater1: { min: 0, max: 1000, color: '#0ea5e9', unit: 'm', type: 'linear' },
+            lowerWater2: { min: 0, max: 1000, color: '#0284c7', unit: 'm', type: 'linear' },
+            // Environmental gauges - all circular dials except special cases
+            evaporation: { min: 0, max: 10, color: '#f59e0b', unit: 'mm' },
+            temperature: { min: -10, max: 50, color: '#ef4444', unit: '°C' },
+            humidity: { min: 0, max: 100, color: '#22c55e', unit: '%' },
+            rainfall: { min: 0, max: 50, color: '#06b6d4', unit: 'mm', type: 'linear' },
+            surfacePressure: { min: 980, max: 1040, color: '#8b5cf6', unit: 'hPa' },
+            windSpeed: { min: 0, max: 50, color: '#10b981', unit: 'm/s' },
+            windDirection: { min: 0, max: 360, color: '#f59e0b', unit: '°', type: 'compass' },
+            solar: { min: 0, max: 1200, color: '#f59e0b', unit: 'W/m²' }
+        };
+
+        // Initialize gauges
+        function initializeGauges() {
+            Object.keys(gaugeConfigs).forEach(gaugeId => {
+                const config = gaugeConfigs[gaugeId];
+                const canvas = document.getElementById(gaugeId + 'Gauge');
+                if (canvas) {
+                    createGauge(canvas, config);
+                }
+            });
+        }
+
+        // Get responsive canvas size
+        function getCanvasSize() {
+            const isMobile = window.innerWidth <= 480;
+            const isTablet = window.innerWidth <= 768;
+
+            if (isMobile) {
+                return { width: 140, height: 140 };
+            } else if (isTablet) {
+                return { width: 160, height: 160 };
+            } else {
+                return { width: 200, height: 200 };
+            }
+        }
+
+        // Create sleek circular gauge like the reference image
+        function createGauge(canvas, config) {
+            const ctx = canvas.getContext('2d');
+
+            // Store canvas reference for updates
+            canvas.gaugeConfig = config;
+            canvas.currentValue = 0;
+
+            canvas.updateSize = function() {
+                const size = getCanvasSize();
+                canvas.width = size.width;
+                canvas.height = size.height;
+                // Set CSS size to prevent blurry rendering
+                canvas.style.width = size.width + 'px';
+                canvas.style.height = size.height + 'px';
+            };
+
+            canvas.drawGauge = function(value) {
+                canvas.currentValue = value;
+                if (config.type === 'linear') {
+                    drawLinearGauge(ctx, config, value, canvas.width, canvas.height);
+                } else if (config.type === 'thermometer') {
+                    drawThermometerGauge(ctx, config, value, canvas.width, canvas.height);
+                } else if (config.type === 'compass') {
+                    drawCompassGauge(ctx, config, value, canvas.width);
+                } else {
+                    drawCircularGauge(ctx, config, value, canvas.width);
+                }
+            };
+
+            // Initial size and draw
+            canvas.updateSize();
+            canvas.drawGauge(0);
+        }
+
+        // Draw sleek circular gauge like the reference image
+        function drawCircularGauge(ctx, config, value, size) {
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const radius = (size / 2) - 30; // Optimized margin for labels
+
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+
+            // Gauge parameters - 270 degree arc with gap at bottom
+            const startAngle = Math.PI * 0.625;  // 112.5 degrees
+            const endAngle = Math.PI * 2.375;    // 427.5 degrees (270 degree sweep)
+            const totalAngle = endAngle - startAngle;
+            const totalRange = config.max - config.min;
+
+            // Draw background track (dark gray) with subtle gradient
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+            ctx.strokeStyle = '#374151';
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Define color zones with better colors and smoother transitions
+            const zones = [
+                { start: 0, end: 0.65, color: '#22c55e', shadowColor: '#16a34a' },    // Green zone
+                { start: 0.65, end: 0.85, color: '#f59e0b', shadowColor: '#d97706' }, // Yellow zone
+                { start: 0.85, end: 1.0, color: '#ef4444', shadowColor: '#dc2626' }   // Red zone
+            ];
+
+            // Draw color zones with enhanced appearance
+            zones.forEach(zone => {
+                const zoneStartAngle = startAngle + (zone.start * totalAngle);
+                const zoneEndAngle = startAngle + (zone.end * totalAngle);
+
+                // Draw shadow first
+                ctx.save();
+                ctx.shadowColor = zone.shadowColor;
+                ctx.shadowBlur = 3;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 1;
+
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, zoneStartAngle, zoneEndAngle);
+                ctx.strokeStyle = zone.color;
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+                ctx.restore();
+
+                // Draw highlight on top
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius + 1, zoneStartAngle, zoneEndAngle);
+                ctx.strokeStyle = zone.color;
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.globalAlpha = 0.6;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            });
+
+            // Draw scale marks and labels
+            drawScaleMarks(ctx, centerX, centerY, radius, config, startAngle, endAngle);
+
+            // Calculate needle position
+            const percentage = Math.max(0, Math.min(1, (value - config.min) / (config.max - config.min)));
+            const needleAngle = startAngle + (percentage * totalAngle);
+
+            // Draw needle
+            drawNeedle(ctx, centerX, centerY, radius - 15, needleAngle);
+
+            // Draw value display in center bottom area
+            // const displayValue = value.toFixed(totalRange > 100 ? 0 : 1); #eto ay nag dedetermine na kapag 100 above ang range ay magbibigay ng decimal places
+            const displayValue = value.toFixed(2);
+            const displayY = centerY + radius * 0.4;
+
+            ctx.font = 'bold 16px Inter, Arial, sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 2;
+            ctx.fillText(displayValue, centerX, displayY);
+            ctx.shadowBlur = 0;
+
+            // Draw unit below value
+            ctx.font = '10px Inter, Arial, sans-serif';
+            ctx.fillStyle = '#d1d5db';
+            ctx.fillText(config.unit || '', centerX, displayY + 16);
+        }
+
+        // Draw scale marks and labels with better spacing
+        function drawScaleMarks(ctx, centerX, centerY, radius, config, startAngle, endAngle) {
+            const totalAngle = endAngle - startAngle;
+            const totalRange = config.max - config.min;
+            const numMarks = 4; // Reduced for cleaner appearance
+
+            ctx.strokeStyle = '#9ca3af';
+            ctx.fillStyle = '#d1d5db';
+            ctx.font = 'bold 11px Inter, Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (let i = 0; i <= numMarks; i++) {
+                const angle = startAngle + (i / numMarks) * totalAngle;
+                const value = config.min + (i / numMarks) * totalRange;
+
+                // Draw major tick marks
+                const tickStart = radius + 3;
+                const tickEnd = radius + 12;
+
+                const x1 = centerX + Math.cos(angle) * tickStart;
+                const y1 = centerY + Math.sin(angle) * tickStart;
+                const x2 = centerX + Math.cos(angle) * tickEnd;
+                const y2 = centerY + Math.sin(angle) * tickEnd;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // Draw labels with better positioning
+                const labelRadius = radius + 15;
+                const labelX = centerX + Math.cos(angle) * labelRadius;
+                const labelY = centerY + Math.sin(angle) * labelRadius;
+
+                // Format value based on range - shorter labels
+                let displayValue;
+                if (totalRange > 10000) {
+                    displayValue = Math.round(value / 1000) + 'k';
+                } else if (totalRange > 1000) {
+                    displayValue = (value / 1000).toFixed(0) + 'k';
+                } else if (value >= 100) {
+                    displayValue = Math.round(value).toString();
+                } else if (value >= 10) {
+                    displayValue = Math.round(value).toString();
+                } else {
+                    displayValue = value.toFixed(1);
+                }
+
+                // Add text shadow for better readability
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowBlur = 2;
+                ctx.fillText(displayValue, labelX, labelY);
+                ctx.shadowBlur = 0;
+            }
+
+            // Draw minor tick marks between major ones
+            ctx.strokeStyle = '#6b7280';
+            ctx.lineWidth = 1;
+            const minorMarks = numMarks * 2;
+
+            for (let i = 1; i < minorMarks; i += 2) {
+                const angle = startAngle + (i / minorMarks) * totalAngle;
+                const tickStart = radius + 5;
+                const tickEnd = radius + 8;
+
+                const x1 = centerX + Math.cos(angle) * tickStart;
+                const y1 = centerY + Math.sin(angle) * tickStart;
+                const x2 = centerX + Math.cos(angle) * tickEnd;
+                const y2 = centerY + Math.sin(angle) * tickEnd;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+        }
+
+        // Draw enhanced needle with better design
+        function drawNeedle(ctx, centerX, centerY, radius, angle) {
+            const needleLength = radius - 8;
+            const needleWidth = 4;
+
+            // Calculate needle tip position
+            const tipX = centerX + Math.cos(angle) * needleLength;
+            const tipY = centerY + Math.sin(angle) * needleLength;
+
+            // Calculate needle base positions for a more tapered design
+            const baseAngle1 = angle + Math.PI / 2;
+            const baseAngle2 = angle - Math.PI / 2;
+            const baseRadius = needleWidth;
+            const midRadius = needleWidth * 0.6;
+
+            const base1X = centerX + Math.cos(baseAngle1) * baseRadius;
+            const base1Y = centerY + Math.sin(baseAngle1) * baseRadius;
+            const base2X = centerX + Math.cos(baseAngle2) * baseRadius;
+            const base2Y = centerY + Math.sin(baseAngle2) * baseRadius;
+
+            // Mid points for tapered needle
+            const midLength = needleLength * 0.7;
+            const midX = centerX + Math.cos(angle) * midLength;
+            const midY = centerY + Math.sin(angle) * midLength;
+            const mid1X = midX + Math.cos(baseAngle1) * midRadius;
+            const mid1Y = midY + Math.sin(baseAngle1) * midRadius;
+            const mid2X = midX + Math.cos(baseAngle2) * midRadius;
+            const mid2Y = midY + Math.sin(baseAngle2) * midRadius;
+
+            // Draw needle shadow
+            ctx.save();
+            ctx.translate(1, 1);
+            ctx.beginPath();
+            ctx.moveTo(base1X, base1Y);
+            ctx.lineTo(mid1X, mid1Y);
+            ctx.lineTo(tipX, tipY);
+            ctx.lineTo(mid2X, mid2Y);
+            ctx.lineTo(base2X, base2Y);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fill();
+            ctx.restore();
+
+            // Draw main needle
+            ctx.beginPath();
+            ctx.moveTo(base1X, base1Y);
+            ctx.lineTo(mid1X, mid1Y);
+            ctx.lineTo(tipX, tipY);
+            ctx.lineTo(mid2X, mid2Y);
+            ctx.lineTo(base2X, base2Y);
+            ctx.closePath();
+
+            // Gradient fill for needle
+            const gradient = ctx.createLinearGradient(centerX, centerY, tipX, tipY);
+            gradient.addColorStop(0, '#ffffff');
+            gradient.addColorStop(1, '#f3f4f6');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            ctx.strokeStyle = '#374151';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Draw enhanced center hub
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+            const hubGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 8);
+            hubGradient.addColorStop(0, '#ffffff');
+            hubGradient.addColorStop(1, '#e5e7eb');
+            ctx.fillStyle = hubGradient;
+            ctx.fill();
+            ctx.strokeStyle = '#9ca3af';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw center dot
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 3, 0, 2 * Math.PI);
+            ctx.fillStyle = '#6b7280';
+            ctx.fill();
+        }
+
+        // Draw linear gauge (meter barrel style) for Net Head
+        function drawLinearGauge(ctx, config, value, width, height) {
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Gauge dimensions
+            const margin = 30;
+            const gaugeWidth = 60;
+            const gaugeHeight = height - (margin * 2);
+            const gaugeX = (width - gaugeWidth) / 2;
+            const gaugeY = margin;
+
+            // Calculate fill percentage
+            const percentage = Math.max(0, Math.min(1, (value - config.min) / (config.max - config.min)));
+            const fillHeight = gaugeHeight * percentage;
+
+            // Draw outer container (barrel)
+            ctx.beginPath();
+            ctx.roundRect(gaugeX, gaugeY, gaugeWidth, gaugeHeight, 8);
+            ctx.fillStyle = '#374151';
+            ctx.fill();
+            ctx.strokeStyle = '#6b7280';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw inner background
+            ctx.beginPath();
+            ctx.roundRect(gaugeX + 4, gaugeY + 4, gaugeWidth - 8, gaugeHeight - 8, 4);
+            ctx.fillStyle = '#1f2937';
+            ctx.fill();
+
+            // Draw fill with gradient
+            if (fillHeight > 0) {
+                const gradient = ctx.createLinearGradient(0, gaugeY + gaugeHeight, 0, gaugeY + gaugeHeight - fillHeight);
+
+                // Color based on percentage
+                if (percentage < 0.3) {
+                    gradient.addColorStop(0, '#ef4444'); // Red (low)
+                    gradient.addColorStop(1, '#f87171');
+                } else if (percentage < 0.7) {
+                    gradient.addColorStop(0, '#f59e0b'); // Yellow (medium)
+                    gradient.addColorStop(1, '#fbbf24');
+                } else {
+                    gradient.addColorStop(0, '#22c55e'); // Green (high)
+                    gradient.addColorStop(1, '#4ade80');
+                }
+
+                ctx.beginPath();
+                ctx.roundRect(gaugeX + 6, gaugeY + gaugeHeight - fillHeight + 2, gaugeWidth - 12, fillHeight - 4, 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
+
+            // Draw scale marks
+            const numMarks = 5;
+            ctx.strokeStyle = '#9ca3af';
+            ctx.fillStyle = '#d1d5db';
+            ctx.font = 'bold 11px Inter, Arial, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+
+            for (let i = 0; i <= numMarks; i++) {
+                const markY = gaugeY + (i / numMarks) * gaugeHeight;
+                const markValue = config.max - (i / numMarks) * (config.max - config.min);
+
+                // Draw tick mark
+                ctx.beginPath();
+                ctx.moveTo(gaugeX + gaugeWidth + 5, markY);
+                ctx.lineTo(gaugeX + gaugeWidth + 15, markY);
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw label
+                ctx.fillText(Math.round(markValue).toString(), gaugeX + gaugeWidth + 20, markY);
+            }
+
+            // Draw current value at bottom
+            ctx.font = 'bold 16px Inter, Arial, sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 2;
+            ctx.fillText(value.toFixed(1), width / 2, height - 15);
+            ctx.shadowBlur = 0;
+
+            // Draw unit
+            ctx.font = '10px Inter, Arial, sans-serif';
+            ctx.fillStyle = '#d1d5db';
+            ctx.fillText(config.unit || '', width / 2, height - 5);
+        }
+
+        // Draw thermometer gauge for temperature
+        function drawThermometerGauge(ctx, config, value, width, height) {
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Thermometer dimensions
+            const margin = 30;
+            const bulbRadius = 25;
+            const tubeWidth = 20;
+            const tubeHeight = height - margin * 2 - bulbRadius;
+            const centerX = width / 2;
+            const tubeY = margin;
+            const bulbY = tubeY + tubeHeight;
+
+            // Calculate fill percentage
+            const percentage = Math.max(0, Math.min(1, (value - config.min) / (config.max - config.min)));
+            const fillHeight = tubeHeight * percentage;
+
+            // Draw thermometer tube
+            ctx.beginPath();
+            ctx.roundRect(centerX - tubeWidth/2, tubeY, tubeWidth, tubeHeight, tubeWidth/2);
+            ctx.fillStyle = '#374151';
+            ctx.fill();
+            ctx.strokeStyle = '#6b7280';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw bulb
+            ctx.beginPath();
+            ctx.arc(centerX, bulbY + bulbRadius/2, bulbRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#374151';
+            ctx.fill();
+            ctx.stroke();
+
+            // Draw mercury/fill
+            if (fillHeight > 0) {
+                const gradient = ctx.createLinearGradient(0, bulbY, 0, bulbY - fillHeight);
+
+                // Color based on temperature
+                if (value < 10) {
+                    gradient.addColorStop(0, '#3b82f6'); // Blue (cold)
+                    gradient.addColorStop(1, '#60a5fa');
+                } else if (value < 25) {
+                    gradient.addColorStop(0, '#22c55e'); // Green (mild)
+                    gradient.addColorStop(1, '#4ade80');
+                } else if (value < 35) {
+                    gradient.addColorStop(0, '#f59e0b'); // Yellow (warm)
+                    gradient.addColorStop(1, '#fbbf24');
+                } else {
+                    gradient.addColorStop(0, '#ef4444'); // Red (hot)
+                    gradient.addColorStop(1, '#f87171');
+                }
+
+                // Fill bulb
+                ctx.beginPath();
+                ctx.arc(centerX, bulbY + bulbRadius/2, bulbRadius - 3, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // Fill tube
+                ctx.beginPath();
+                ctx.roundRect(centerX - tubeWidth/2 + 3, bulbY - fillHeight + 3, tubeWidth - 6, fillHeight, (tubeWidth - 6)/2);
+                ctx.fill();
+            }
+
+            // Draw scale marks
+            const numMarks = 5;
+            ctx.strokeStyle = '#9ca3af';
+            ctx.fillStyle = '#d1d5db';
+            ctx.font = 'bold 11px Inter, Arial, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+
+            for (let i = 0; i <= numMarks; i++) {
+                const markY = tubeY + (i / numMarks) * tubeHeight;
+                const markValue = config.max - (i / numMarks) * (config.max - config.min);
+
+                // Draw tick mark
+                ctx.beginPath();
+                ctx.moveTo(centerX + tubeWidth/2 + 5, markY);
+                ctx.lineTo(centerX + tubeWidth/2 + 15, markY);
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw label
+                ctx.fillText(Math.round(markValue).toString(), centerX + tubeWidth/2 + 20, markY);
+            }
+
+            // Draw current value
+            ctx.font = 'bold 16px Inter, Arial, sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 2;
+            ctx.fillText(value.toFixed(1), width / 2, height - 15);
+            ctx.shadowBlur = 0;
+
+            // Draw unit
+            ctx.font = '10px Inter, Arial, sans-serif';
+            ctx.fillStyle = '#d1d5db';
+            ctx.fillText(config.unit || '', width / 2, height - 5);
+        }
+
+        // Draw compass gauge for wind direction
+        function drawCompassGauge(ctx, config, value, size) {
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+
+            const centerX = size / 2;
+            const centerY = size / 2;
+            const radius = (size / 2) - 25; // Larger compass circle
+
+            // Draw compass circle
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#374151';
+            ctx.fill();
+            ctx.strokeStyle = '#6b7280';
+            ctx.lineWidth = 4; // Thicker border
+            ctx.stroke();
+
+            // Draw cardinal directions
+            const directions = ['N', 'E', 'S', 'W'];
+            const angles = [0, 90, 180, 270];
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px Inter, Arial, sans-serif'; // Larger font
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            directions.forEach((dir, i) => {
+                const angle = (angles[i] - 90) * Math.PI / 180;
+                const x = centerX + Math.cos(angle) * (radius - 12); // Closer to edge
+                const y = centerY + Math.sin(angle) * (radius - 12);
+                ctx.fillText(dir, x, y);
+            });
+
+            // Draw degree marks
+            ctx.strokeStyle = '#9ca3af';
+            ctx.lineWidth = 2; // Thicker marks
+            for (let i = 0; i < 360; i += 30) {
+                const angle = (i - 90) * Math.PI / 180;
+                const x1 = centerX + Math.cos(angle) * (radius - 3);
+                const y1 = centerY + Math.sin(angle) * (radius - 3);
+                const x2 = centerX + Math.cos(angle) * (radius - 12);
+                const y2 = centerY + Math.sin(angle) * (radius - 12);
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+
+            // Draw wind direction needle
+            const windAngle = (value - 90) * Math.PI / 180;
+            const needleLength = radius - 18; // Longer needle
+
+            ctx.strokeStyle = '#ef4444';
+            ctx.fillStyle = '#ef4444';
+            ctx.lineWidth = 5; // Thicker needle
+
+            // Needle
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(
+                centerX + Math.cos(windAngle) * needleLength,
+                centerY + Math.sin(windAngle) * needleLength
+            );
+            ctx.stroke();
+
+            // Needle tip
+            ctx.beginPath();
+            ctx.arc(
+                centerX + Math.cos(windAngle) * needleLength,
+                centerY + Math.sin(windAngle) * needleLength,
+                6, 0, Math.PI * 2 // Larger needle tip
+            );
+            ctx.fill();
+
+            // Center dot
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 8, 0, Math.PI * 2); // Larger center dot
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.strokeStyle = '#374151';
+            ctx.lineWidth = 3; // Thicker border
+            ctx.stroke();
+
+            // Draw current value
+            ctx.font = 'bold 20px Inter, Arial, sans-serif'; // Larger value text
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 2;
+            ctx.fillText(value.toFixed(0) + '°', centerX, centerY + 40); // Moved down slightly
+            ctx.shadowBlur = 0;
+        }
+
+        // Update individual gauge value
+        function updateGaugeValue(gaugeId, value) {
+            const canvas = document.getElementById(gaugeId + 'Gauge');
+            if (canvas && canvas.drawGauge) {
+                canvas.drawGauge(value);
+            }
+        }
+
+        // Update gauge sizes on window resize
+        function updateGaugeSizes() {
+            // Update all canvas sizes and redraw
+            Object.keys(gaugeConfigs).forEach(gaugeId => {
+                const canvas = document.getElementById(gaugeId + 'Gauge');
+                if (canvas && canvas.updateSize && canvas.drawGauge) {
+                    canvas.updateSize();
+                    canvas.drawGauge(canvas.currentValue || 0);
+                }
+            });
+        }
+
+        // Update real-time clock
+        function updateClock() {
+            document.getElementById('currentTime').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Update sensor displays
+        function updateSensorDisplays() {
+            // Check if sensorData exists
+            if (!sensorData) {
+                console.warn('sensorData is undefined');
+                return;
+            }
+            
+            // Helper function to safely update element with null checks
+            function safeUpdate(elementId, value) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = value || '--';
+                } else {
+                    console.warn(`Element not found: ${elementId}`);
+                }
+            }
+            
+            // Helper function to safely format numbers
+            function safeFormat(value, decimals = 1) {
+                if (value === null || value === undefined || isNaN(value)) {
+                    return '--';
+                }
+                return Number(value).toFixed(decimals);
+            }
+            
+            // Update status bar (excluding time - handled separately)
+            safeUpdate('waterTemp', safeFormat(sensorData.temp_water, 1));
+            safeUpdate('totalMW', safeFormat(sensorData.mw, 1));
+
+            // Update gauge values and redraw gauges
+            safeUpdate('totalMWValue', safeFormat(sensorData.mw, 1));
+            safeUpdate('turbineMWValue', safeFormat(sensorData.mw_turbine, 1));
+            safeUpdate('pumpMWValue', safeFormat(sensorData.mw_pump, 1));
+            safeUpdate('megaVarValue', safeFormat(sensorData.mvar, 1));
+            safeUpdate('voltageValue', safeFormat(sensorData.voltage, 0));
+            safeUpdate('currentValue', safeFormat(sensorData.current, 0));
+            safeUpdate('frequencyValue', safeFormat(sensorData.hz, 1));
+            safeUpdate('flowTurbineGaugeValue', safeFormat(sensorData.flow_turbine, 1));
+            safeUpdate('flowPumpGaugeValue', safeFormat(sensorData.flow_pump, 1));
+            safeUpdate('flowOtherGaugeValue', safeFormat(sensorData.flow_other, 1));
+            safeUpdate('netHeadGaugeValue', safeFormat(sensorData.net_head, 1));
+
+            // Water level gauge values
+            safeUpdate('upperWater1GaugeValue', safeFormat(sensorData.upper_water1, 1));
+            safeUpdate('upperWater2GaugeValue', safeFormat(sensorData.upper_water2, 1));
+            safeUpdate('lowerWater1GaugeValue', safeFormat(sensorData.lower_water1, 1));
+            safeUpdate('lowerWater2GaugeValue', safeFormat(sensorData.lower_water2, 1));
+
+            // Environmental gauge values
+            safeUpdate('evaporationGaugeValue', safeFormat(sensorData.evaporation, 1));
+            safeUpdate('temperatureGaugeValue', safeFormat(sensorData.air_temp, 1));
+            safeUpdate('humidityGaugeValue', safeFormat(sensorData.humidity, 0));
+            safeUpdate('rainfallGaugeValue', safeFormat(sensorData.rainfall, 1));
+            safeUpdate('surfacePressureGaugeValue', safeFormat(sensorData.pressure, 1));
+            safeUpdate('windSpeedGaugeValue', safeFormat(sensorData.windspeed, 1));
+            safeUpdate('windDirectionGaugeValue', safeFormat(sensorData.wind_direction, 0));
+
+            // Update gauge visuals with safe values
+            updateGaugeValue('totalMW', sensorData.mw || 0);
+            updateGaugeValue('turbineMW', sensorData.mw_turbine || 0);
+            updateGaugeValue('pumpMW', sensorData.mw_pump || 0);
+            updateGaugeValue('megaVar', sensorData.mvar || 0);
+            updateGaugeValue('voltage', sensorData.voltage || 0);
+            updateGaugeValue('current', sensorData.current || 0);
+            updateGaugeValue('frequency', sensorData.hz || 0);
+            updateGaugeValue('flowTurbine', sensorData.flow_turbine || 0);
+            updateGaugeValue('flowPump', sensorData.flow_pump || 0);
+            updateGaugeValue('flowOther', sensorData.flow_other || 0);
+            updateGaugeValue('netHead', sensorData.net_head || 0);
+
+            // Water level gauges
+            updateGaugeValue('upperWater1', sensorData.upper_water1 || 0);
+            updateGaugeValue('upperWater2', sensorData.upper_water2 || 0);
+            updateGaugeValue('lowerWater1', sensorData.lower_water1 || 0);
+            updateGaugeValue('lowerWater2', sensorData.lower_water2 || 0);
+
+            // Environmental gauges
+            updateGaugeValue('evaporation', sensorData.evaporation || 0);
+            updateGaugeValue('temperature', sensorData.air_temp || 0);
+            updateGaugeValue('humidity', sensorData.humidity || 0);
+            updateGaugeValue('rainfall', sensorData.rainfall || 0);
+            updateGaugeValue('surfacePressure', sensorData.pressure || 0);
+            updateGaugeValue('windSpeed', sensorData.windspeed || 0);
+            updateGaugeValue('windDirection', sensorData.wind_direction || 0);
+            updateGaugeValue('solar', sensorData.solar_radiation || 0);
+
+            // Update water levels (only if elements exist)
+            const upperWaterLevel = document.getElementById('upperWaterLevel');
+            const lowerWaterLevel = document.getElementById('lowerWaterLevel');
+            
+            if (upperWaterLevel && lowerWaterLevel) {
+                const upperLevel = (((sensorData.upper_water1 || 0) + (sensorData.upper_water2 || 0)) / 2 / 100) * 100;
+                const lowerLevel = (((sensorData.lower_water1 || 0) + (sensorData.lower_water2 || 0)) / 2 / 100) * 100;
+                upperWaterLevel.style.height = upperLevel + '%';
+                lowerWaterLevel.style.height = lowerLevel + '%';
+            }
+
+            // Update individual water level displays (only if elements exist)
+            const upperWater1El = document.getElementById('upperWater1');
+            const upperWater2El = document.getElementById('upperWater2');
+            const lowerWater1El = document.getElementById('lowerWater1');
+            const lowerWater2El = document.getElementById('lowerWater2');
+            
+            if (upperWater1El) upperWater1El.textContent = safeFormat(sensorData.upper_water1, 1);
+            if (upperWater2El) upperWater2El.textContent = safeFormat(sensorData.upper_water2, 1);
+            if (lowerWater1El) lowerWater1El.textContent = safeFormat(sensorData.lower_water1, 1);
+            if (lowerWater2El) lowerWater2El.textContent = safeFormat(sensorData.lower_water2, 1);
+
+            // Update flow rates
+            safeUpdate('flowTurbine', safeFormat(sensorData.flow_turbine, 1) + ' m³/s');
+            safeUpdate('flowPump', safeFormat(sensorData.flow_pump, 1) + ' m³/s');
+            safeUpdate('flowOther', safeFormat(sensorData.flow_other, 1) + ' m³/s');
+
+            // Update water temperature
+            const waterTempMercury = document.getElementById('waterTempMercury');
+            const waterTempReading = document.getElementById('waterTempReading');
+            
+            if (waterTempMercury) {
+                const tempPercent = ((sensorData.temp_water || 0) / 40) * 100;
+                waterTempMercury.style.height = tempPercent + '%';
+            }
+            if (waterTempReading) {
+                waterTempReading.textContent = safeFormat(sensorData.temp_water, 1) + '°C';
+            }
+
+            // Update environmental data
+            safeUpdate('airTemp', safeFormat(sensorData.air_temp, 1) + '°C');
+            safeUpdate('humidity', safeFormat(sensorData.humidity, 0) + '%');
+            safeUpdate('rainfall', safeFormat(sensorData.rainfall, 1) + ' mm');
+            safeUpdate('pressure', safeFormat(sensorData.pressure, 1) + ' hPa');
+
+            // Update wind data
+            safeUpdate('windSpeed', safeFormat(sensorData.windspeed, 1) + ' m/s');
+            safeUpdate('windDirection', safeFormat(sensorData.wind_direction, 0) + '°');
+            
+            const windNeedle = document.getElementById('windNeedle');
+            if (windNeedle) {
+                windNeedle.style.transform = `rotate(${sensorData.wind_direction || 0}deg)`;
+            }
+
+            // Update solar radiation display
+            const solarValue = document.getElementById('solarValue');
+            if (solarValue) {
+                solarValue.textContent = safeFormat(sensorData.solar_radiation, 0) + ' W/m²';
+            }
+        }
+
+        // Enhanced data updates with mobile optimization
+        function simulateDataUpdates() {
+            // Generate realistic simulated data when offline
+            sensorData = {
+                mw: 45.2 + (Math.random() - 0.5) * 10,
+                mw_turbine: 48.7 + (Math.random() - 0.5) * 8,
+                mw_pump: 3.5 + (Math.random() - 0.5) * 2,
+                mvar: 12.3 + (Math.random() - 0.5) * 5,
+                voltage: 13800 + (Math.random() - 0.5) * 500,
+                current: 1250 + (Math.random() - 0.5) * 200,
+                hz: 50.0 + (Math.random() - 0.5) * 1,
+                flow_turbine: 125.5 + (Math.random() - 0.5) * 20,
+                flow_pump: 15.2 + (Math.random() - 0.5) * 5,
+                flow_other: 8.7 + (Math.random() - 0.5) * 3,
+                net_head: 85.3 + (Math.random() - 0.5) * 10,
+                temp_water: 22.5 + (Math.random() - 0.5) * 3,
+                upper_water1: 65.2 + (Math.random() - 0.5) * 5,
+                upper_water2: 64.8 + (Math.random() - 0.5) * 5,
+                lower_water1: 45.1 + (Math.random() - 0.5) * 3,
+                lower_water2: 44.9 + (Math.random() - 0.5) * 3,
+                evaporation: 2.3 + (Math.random() - 0.5) * 1,
+                air_temp: 28.5 + (Math.random() - 0.5) * 5,
+                humidity: 65 + (Math.random() - 0.5) * 20,
+                rainfall: Math.max(0, 0.2 + (Math.random() - 0.5) * 2),
+                pressure: 1013.2 + (Math.random() - 0.5) * 10,
+                windspeed: 12.5 + (Math.random() - 0.5) * 8,
+                wind_direction: (225 + (Math.random() - 0.5) * 60) % 360,
+                solar_radiation: 850 + (Math.random() - 0.5) * 200,
+                data_source: 'simulated'
+            };
+
+            updateSensorDisplays();
+            updateConnectionStatus(false); // Show offline status
+        }
+
+        // Connection status management
+        function updateConnectionStatus(isConnected) {
+            const statusItems = document.querySelectorAll('.status-item');
+            if (statusItems.length > 0) {
+                const firstStatus = statusItems[0];
+                if (isConnected) {
+                    firstStatus.className = 'status-item status-optimal';
+                    firstStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>System Online</span>';
+                } else {
+                    firstStatus.className = 'status-item status-error';
+                    firstStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Connection Lost</span>';
+                }
+            }
+        }
+
+        // Mobile-optimized data fetching
+        function fetchRealTimeData() {
+            // Always try to fetch from local Flask server (no internet check)
+            fetch(`/api/sensor-data?location=${currentLocation}`)
+                .then(response => response.json())
+                .then(data => {
+                    sensorData = data;
+                    updateSensorDisplays();
+                    updateConnectionStatus(true);
+
+                    // Show data source indicator
+                    updateDataSourceIndicator(data.data_source || 'database');
+                })
+                .catch(error => {
+                    console.error('Data fetch error:', error);
+                    updateConnectionStatus(false);
+                    // Keep showing last known real data
+                    updateSensorDisplays();
+                    updateDataSourceIndicator('offline');
+                });
+        }
+        
+
+        function updateDataSourceIndicator(source) {
+            const indicator = document.getElementById('dataSourceIndicator');
+            if (!indicator) {
+                // Create indicator if it doesn't exist
+                const statusBar = document.querySelector('.status-bar');
+                const newIndicator = document.createElement('div');
+                newIndicator.id = 'dataSourceIndicator';
+                newIndicator.className = 'status-item';
+                statusBar.appendChild(newIndicator);
+            }
+
+            const indicatorElement = document.getElementById('dataSourceIndicator');
+
+            switch(source) {
+                case 'database':
+                    indicatorElement.innerHTML = '<i class="fas fa-database" style="color: #10b981;"></i><span>Live Data</span>';
+                    break;
+                case 'simulated':
+                    indicatorElement.innerHTML = '<i class="fas fa-flask" style="color: #f59e0b;"></i><span>Simulated</span>';
+                    break;
+                case 'aggregated':
+                    indicatorElement.innerHTML = '<i class="fas fa-layer-group" style="color: #3b82f6;"></i><span>Aggregated</span>';
+                    break;
+                case 'botocan_aggregated':
+                    indicatorElement.innerHTML = '<i class="fas fa-industry" style="color: #f59e0b;"></i><span>Botocan Combined</span>';
+                    break;
+                case 'none':
+                    indicatorElement.innerHTML = '<i class="fas fa-ban" style="color: #ef4444;"></i><span>No Data</span>';
+                    break;
+                case 'offline':
+                    indicatorElement.innerHTML = '<i class="fas fa-wifi-slash" style="color: #ef4444;"></i><span>Offline</span>';
+                    break;
+                default:
+                    indicatorElement.innerHTML = '<i class="fas fa-question" style="color: #6b7280;"></i><span>Unknown</span>';
+            }
+        }
+
+        // Network status monitoring
+        window.addEventListener('online', function() {
+            updateConnectionStatus(true);
+            fetchRealTimeData();
+        });
+
+        window.addEventListener('offline', function() {
+            updateConnectionStatus(false);
+        });
+
+        // Gauge customization functions
+        function toggleGaugeVisibility(gaugeId, show) {
+            const element = document.querySelector(`[data-gauge-id="${gaugeId}"]`);
+            if (element) {
+                if (show) {
+                    element.style.display = '';
+                    element.classList.remove('hidden');
+                } else {
+                    element.style.display = 'none';
+                    element.classList.add('hidden');
+                }
+                console.log(`${show ? 'Showing' : 'Hiding'} gauge: ${gaugeId}`);
+            } else {
+                console.warn(`Gauge not found: ${gaugeId}`);
+            }
+        }
+        
+        function selectAllGauges() {
+            const checkboxes = document.querySelectorAll('#gaugeCustomPanel input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                toggleGaugeVisibility(cb.dataset.gauge, true);
+            });
+        }
+        
+        function deselectAllGauges() {
+            const checkboxes = document.querySelectorAll('#gaugeCustomPanel input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+                toggleGaugeVisibility(cb.dataset.gauge, false);
+            });
+        }
+        
+        function resetGaugeSelection() {
+            selectAllGauges();
+        }
+        
+        function toggleGaugePanel() {
+            const panel = document.getElementById('gaugeCustomPanel');
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+                console.log('Panel toggled, display:', panel.style.display);
+                
+                // Re-initialize when panel opens
+                if (panel.style.display === 'block') {
+                    setTimeout(() => {
+                        initializeGaugeCustomization();
+                    }, 100);
+                }
+            }
+        }
+        
+        // Test function - call this in console to test
+        function testGaugeHiding() {
+            console.log('=== TESTING GAUGE HIDING ===');
+            toggleGaugeVisibility('totalMWGauge', false);
+            setTimeout(() => toggleGaugeVisibility('totalMWGauge', true), 2000);
+        }
+        
+        // Initialize gauge customization - FIXED VERSION
+        function initializeGaugeCustomization() {
+            console.log('Initializing gauge customization...');
+            const checkboxes = document.querySelectorAll('#gaugeCustomPanel input[type="checkbox"]');
+            console.log('Found checkboxes:', checkboxes.length);
+            
+            checkboxes.forEach(cb => {
+                console.log('Setting up checkbox for:', cb.dataset.gauge);
+                cb.addEventListener('change', function() {
+                    console.log('Checkbox changed:', this.dataset.gauge, 'checked:', this.checked);
+                    toggleGaugeVisibility(this.dataset.gauge, this.checked);
+                });
+            });
+        }
+        
+        // Call initialization after DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait a bit for all elements to be ready
+            setTimeout(() => {
+                initializeGaugeCustomization();
+            }, 1000);
+        });
+
+        // Train ARIMA model function
+        function trainModel() {
+            const btn = event.target.closest('.forecast-btn');
+            const originalText = btn.innerHTML;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Training...';
+            
+            fetch('/api/train-arima-model', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Model trained successfully!');
+                } else {
+                    alert('Training failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                alert('Training error: ' + error.message);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+        }
+    </script>
+</body>
+</html>
